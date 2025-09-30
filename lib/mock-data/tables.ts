@@ -1,0 +1,66 @@
+import type { Table } from "@/lib/types"
+
+export const mockTables: Table[] = [
+  {
+    id: "t1",
+    number: "1",
+    capacity: 2,
+    status: "available",
+    section: "Main Hall",
+  },
+  {
+    id: "t2",
+    number: "2",
+    capacity: 4,
+    status: "occupied",
+    currentOrderId: "o1",
+    waiterId: "4",
+    section: "Main Hall",
+  },
+  {
+    id: "t3",
+    number: "3",
+    capacity: 4,
+    status: "available",
+    section: "Main Hall",
+  },
+  {
+    id: "t4",
+    number: "4",
+    capacity: 6,
+    status: "reserved",
+    reservedBy: "John Doe",
+    reservedAt: new Date(Date.now() + 3600000).toISOString(),
+    section: "Main Hall",
+  },
+  {
+    id: "t5",
+    number: "5",
+    capacity: 2,
+    status: "occupied",
+    currentOrderId: "o2",
+    waiterId: "4",
+    section: "Terrace",
+  },
+  {
+    id: "t6",
+    number: "6",
+    capacity: 8,
+    status: "available",
+    section: "Private Room",
+  },
+  {
+    id: "t7",
+    number: "7",
+    capacity: 4,
+    status: "cleaning",
+    section: "Terrace",
+  },
+  {
+    id: "t8",
+    number: "8",
+    capacity: 2,
+    status: "available",
+    section: "Terrace",
+  },
+]
