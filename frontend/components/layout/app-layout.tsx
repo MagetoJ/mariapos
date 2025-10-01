@@ -1,7 +1,6 @@
 "use client"
 
-import type React from "react"
-
+import React, { useEffect, useState } from "react"
 import { AppSidebar } from "./app-sidebar"
 import { AppHeader } from "./app-header"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -13,6 +12,17 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children, allowedRoles }: AppLayoutProps) {
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    // 👇 This ensures SSR & CSR match (same empty container)
+    return <div className="flex h-screen overflow-hidden" />
+  }
+
   return (
     <ProtectedRoute allowedRoles={allowedRoles}>
       <div className="flex h-screen overflow-hidden">
@@ -21,7 +31,9 @@ export function AppLayout({ children, allowedRoles }: AppLayoutProps) {
         </aside>
         <div className="flex-1 flex flex-col overflow-hidden">
           <AppHeader />
-          <main className="flex-1 overflow-y-auto bg-background p-6">{children}</main>
+          <main className="flex-1 overflow-y-auto bg-background p-6">
+            {children}
+          </main>
         </div>
       </div>
     </ProtectedRoute>

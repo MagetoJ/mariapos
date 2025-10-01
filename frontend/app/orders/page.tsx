@@ -31,27 +31,37 @@ export default function OrdersPage() {
   const fetchData = async () => {
     try {
       const [ordersData, menuData, tablesData] = await Promise.all([
-        orderService.getOrders(),
-        menuService.getMenuItems(),
-        tableService.getTables(),
+        orderService.getOrders().catch((e) => {
+          console.error("❌ getOrders failed:", e)
+          return []
+        }),
+        menuService.getMenuItems().catch((e) => {
+          console.error("❌ getMenuItems failed:", e)
+          return []
+        }),
+        tableService.getTables().catch((e) => {
+          console.error("❌ getTables failed:", e)
+          return []
+        }),
       ])
+
       setOrders(ordersData)
       setMenuItems(menuData)
       setTables(tablesData)
-    } catch (error) {
-      console.error("Failed to fetch orders:", error)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCreateOrder = async (order: Omit<Order, "id" | "orderNumber" | "createdAt" | "updatedAt">) => {
+  const handleCreateOrder = async (
+    order: Omit<Order, "id" | "orderNumber" | "createdAt" | "updatedAt">,
+  ) => {
     try {
       const newOrder = await orderService.createOrder(order)
       setOrders([newOrder, ...orders])
       setCreateDialogOpen(false)
     } catch (error) {
-      console.error("Failed to create order:", error)
+      console.error("❌ Failed to create order:", error)
     }
   }
 
@@ -63,7 +73,7 @@ export default function OrdersPage() {
         setSelectedOrder(updatedOrder)
       }
     } catch (error) {
-      console.error("Failed to update order:", error)
+      console.error("❌ Failed to update order:", error)
     }
   }
 
@@ -74,16 +84,21 @@ export default function OrdersPage() {
 
   const filteredOrders = orders.filter(
     (order) =>
-      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const activeOrders = filteredOrders.filter((o) => ["pending", "preparing", "ready"].includes(o.status))
+  const activeOrders = filteredOrders.filter((o) =>
+    ["pending", "preparing", "ready"].includes(o.status),
+  )
   const completedOrders = filteredOrders.filter((o) => o.status === "completed")
   const cancelledOrders = filteredOrders.filter((o) => o.status === "cancelled")
 
-  // Filter orders for waiters - only show their assigned orders
-  const displayOrders = user?.role === "waiter" ? filteredOrders.filter((o) => o.waiterId === user.id) : filteredOrders
+  // Waiters only see their assigned orders
+  const displayOrders =
+    user?.role === "waiter"
+      ? filteredOrders.filter((o) => o.waiterId === user.id)
+      : filteredOrders
 
   const canCreateOrder = user?.role !== "kitchen"
 
@@ -105,7 +120,9 @@ export default function OrdersPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-balance">Orders</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-balance">
+              Orders
+            </h2>
             <p className="text-muted-foreground">Manage and track all orders</p>
           </div>
           {canCreateOrder && (
@@ -131,25 +148,45 @@ export default function OrdersPage() {
         <Tabs defaultValue="active" className="space-y-4">
           <TabsList>
             <TabsTrigger value="active">Active ({activeOrders.length})</TabsTrigger>
-            <TabsTrigger value="completed">Completed ({completedOrders.length})</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelled ({cancelledOrders.length})</TabsTrigger>
+            <TabsTrigger value="completed">
+              Completed ({completedOrders.length})
+            </TabsTrigger>
+            <TabsTrigger value="cancelled">
+              Cancelled ({cancelledOrders.length})
+            </TabsTrigger>
             <TabsTrigger value="all">All ({displayOrders.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="active" className="space-y-4">
-            <OrderList orders={activeOrders} onViewOrder={handleViewOrder} onUpdateOrder={handleUpdateOrder} />
+            <OrderList
+              orders={activeOrders}
+              onViewOrder={handleViewOrder}
+              onUpdateOrder={handleUpdateOrder}
+            />
           </TabsContent>
 
           <TabsContent value="completed" className="space-y-4">
-            <OrderList orders={completedOrders} onViewOrder={handleViewOrder} onUpdateOrder={handleUpdateOrder} />
+            <OrderList
+              orders={completedOrders}
+              onViewOrder={handleViewOrder}
+              onUpdateOrder={handleUpdateOrder}
+            />
           </TabsContent>
 
           <TabsContent value="cancelled" className="space-y-4">
-            <OrderList orders={cancelledOrders} onViewOrder={handleViewOrder} onUpdateOrder={handleUpdateOrder} />
+            <OrderList
+              orders={cancelledOrders}
+              onViewOrder={handleViewOrder}
+              onUpdateOrder={handleUpdateOrder}
+            />
           </TabsContent>
 
           <TabsContent value="all" className="space-y-4">
-            <OrderList orders={displayOrders} onViewOrder={handleViewOrder} onUpdateOrder={handleUpdateOrder} />
+            <OrderList
+              orders={displayOrders}
+              onViewOrder={handleViewOrder}
+              onUpdateOrder={handleUpdateOrder}
+            />
           </TabsContent>
         </Tabs>
       </div>

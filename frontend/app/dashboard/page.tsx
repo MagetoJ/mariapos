@@ -2,11 +2,37 @@
 
 import { useEffect, useState } from "react"
 import { AppLayout } from "@/components/layout/app-layout"
-import { dashboardService, inventoryService, orderService, getServiceRequests } from "@/lib/api/data-service"
-import type { DashboardStats, SalesData, CategorySales, InventoryItem, Order, ServiceRequest } from "@/lib/types"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  dashboardService,
+  inventoryService,
+  orderService,
+  getServiceRequests,
+} from "@/lib/api/data-service"
+import type {
+  DashboardStats,
+  SalesData,
+  CategorySales,
+  InventoryItem,
+  Order,
+  ServiceRequest,
+} from "@/lib/types"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { formatCurrency } from "@/lib/utils/format"
-import { TrendingUp, TrendingDown, DollarSign, ShoppingCart, Clock, Users, AlertTriangle } from "lucide-react"
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  ShoppingCart,
+  Clock,
+  Users,
+  AlertTriangle,
+} from "lucide-react"
 import { SalesChart } from "@/components/dashboard/sales-chart"
 import { CategoryChart } from "@/components/dashboard/category-chart"
 import { RecentOrders } from "@/components/dashboard/recent-orders"
@@ -16,6 +42,7 @@ import { useAuthStore } from "@/lib/store/auth-store"
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
+
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [salesData, setSalesData] = useState<SalesData[]>([])
   const [categorySales, setCategorySales] = useState<CategorySales[]>([])
@@ -27,23 +54,54 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [statsData, salesChartData, categoryData, lowStock, orders, requests] = await Promise.all([
-          dashboardService.getStats(),
-          dashboardService.getSalesData(7),
-          dashboardService.getCategorySales(),
-          inventoryService.getLowStockItems(),
-          orderService.getOrders(),
-          getServiceRequests(),
-        ])
+        const [statsData, salesChartData, categoryData, lowStock, orders, requests] =
+          await Promise.all([
+            dashboardService
+              .getStats()
+              .catch((e) => {
+                console.error("❌ getStats failed:", e)
+                return null
+              }),
+            dashboardService
+              .getSalesData(7)
+              .catch((e) => {
+                console.error("❌ getSalesData failed:", e)
+                return []
+              }),
+            dashboardService
+              .getCategorySales()
+              .catch((e) => {
+                console.error("❌ getCategorySales failed:", e)
+                return []
+              }),
+            inventoryService
+              .getLowStockItems()
+              .catch((e) => {
+                console.error("❌ getLowStockItems failed:", e)
+                return []
+              }),
+            orderService
+              .getOrders()
+              .catch((e) => {
+                console.error("❌ getOrders failed:", e)
+                return []
+              }),
+            getServiceRequests().catch((e) => {
+              console.error("❌ getServiceRequests failed:", e)
+              return []
+            }),
+          ])
 
-        setStats(statsData)
+        if (statsData) setStats(statsData)
         setSalesData(salesChartData)
         setCategorySales(categoryData)
         setLowStockItems(lowStock)
         setRecentOrders(orders.slice(0, 5))
-        setServiceRequests(requests.filter((r) => r.status === "pending" || r.status === "in-progress"))
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error)
+        setServiceRequests(
+          requests.filter(
+            (r) => r.status === "pending" || r.status === "in-progress",
+          ),
+        )
       } finally {
         setLoading(false)
       }
@@ -65,15 +123,22 @@ export default function DashboardPage() {
     )
   }
 
-  const showInventory = user?.role === "admin" || user?.role === "manager" || user?.role === "kitchen"
-  const showReports = user?.role === "admin" || user?.role === "manager"
-  const showServiceRequests = user?.role === "admin" || user?.role === "manager" || user?.role === "receptionist"
+  const showInventory =
+    user?.role === "admin" || user?.role === "manager" || user?.role === "kitchen"
+  const showReports =
+    user?.role === "admin" || user?.role === "manager"
+  const showServiceRequests =
+    user?.role === "admin" ||
+    user?.role === "manager" ||
+    user?.role === "receptionist"
 
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-balance">Dashboard</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-balance">
+            Dashboard
+          </h2>
           <p className="text-muted-foreground">Welcome back, {user?.name}</p>
         </div>
 
@@ -85,7 +150,9 @@ export default function DashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.todaySales)}</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(stats.todaySales)}
+              </div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                 {stats.salesGrowth >= 0 ? (
                   <>
@@ -134,7 +201,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.activeOrders}</div>
-              <p className="text-xs text-muted-foreground mt-1">Currently processing</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Currently processing
+              </p>
             </CardContent>
           </Card>
 
@@ -159,7 +228,9 @@ export default function DashboardPage() {
                 <AlertTriangle className="h-5 w-5" />
                 Pending Service Requests
               </CardTitle>
-              <CardDescription>Guest service requests requiring attention</CardDescription>
+              <CardDescription>
+                Guest service requests requiring attention
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <ServiceRequestsList requests={serviceRequests} />
@@ -167,7 +238,6 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Low Stock Alert */}
         {showInventory && lowStockItems.length > 0 && (
           <Card className="border-destructive/50 bg-destructive/5">
             <CardHeader>
@@ -175,7 +245,9 @@ export default function DashboardPage() {
                 <AlertTriangle className="h-5 w-5" />
                 Low Stock Alert
               </CardTitle>
-              <CardDescription>The following items need restocking</CardDescription>
+              <CardDescription>
+                The following items need restocking
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <LowStockAlert items={lowStockItems} />
@@ -183,13 +255,14 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Charts */}
         {showReports && (
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Sales Trend</CardTitle>
-                <CardDescription>Last 7 days sales performance</CardDescription>
+                <CardDescription>
+                  Last 7 days sales performance
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <SalesChart data={salesData} />
@@ -199,7 +272,9 @@ export default function DashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Sales by Category</CardTitle>
-                <CardDescription>Revenue distribution across menu categories</CardDescription>
+                <CardDescription>
+                  Revenue distribution across menu categories
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <CategoryChart data={categorySales} />
@@ -208,7 +283,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Recent Orders */}
         <Card>
           <CardHeader>
             <CardTitle>Recent Orders</CardTitle>

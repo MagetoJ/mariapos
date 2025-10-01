@@ -10,12 +10,17 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# FIX: The secret key should now be loaded correctly from .env
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-q+&dv3j$u!z23_$=h2iy@ua1ti-4_#hfhcq-!#9k3kxshwq4%_')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost').split(',')
+# CRITICAL FIX FOR DisallowedHost:
+# Load ALLOWED_HOSTS from the environment variable. 
+# We explicitly split by comma and filter out any empty strings that might result.
+ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(',') if h.strip()]
 
 # Application definition
 INSTALLED_APPS = [
@@ -228,4 +233,4 @@ CACHES = {
 
 # Session Configuration - Using database for development
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-SESSION_COOKIE_AGE = 86400 
+SESSION_COOKIE_AGE = 86400

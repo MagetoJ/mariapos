@@ -45,6 +45,9 @@ function removeAuthToken(): void {
 async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = getAuthToken()
   
+  console.log('Making API call to:', `${API_BASE_URL}${endpoint}`)
+  console.log('Request options:', options)
+  
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
@@ -54,6 +57,9 @@ async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
     },
   })
   
+  console.log('Response status:', response.status)
+  console.log('Response ok:', response.ok)
+  
   if (!response.ok) {
     if (response.status === 401) {
       // Token expired or invalid, remove from storage
@@ -61,11 +67,23 @@ async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
       throw new Error('Authentication required')
     }
     
-    const errorData = await response.json().catch(() => ({ error: response.statusText }))
-    throw new Error(errorData.error || `API Error: ${response.statusText}`)
+    let errorData
+    try {
+      errorData = await response.json()
+      console.log('Error response data:', errorData)
+    } catch (e) {
+      console.log('Could not parse error response as JSON')
+      errorData = { error: response.statusText }
+    }
+    
+    const errorMessage = errorData.error || errorData.message || errorData.detail || `API Error: ${response.statusText}`
+    console.log('Throwing error:', errorMessage)
+    throw new Error(errorMessage)
   }
   
-  return response.json()
+  const data = await response.json()
+  console.log('Response data:', data)
+  return data
 }
 
 // Authentication
@@ -74,32 +92,43 @@ export const authService = {
     try {
       const loginData: any = { email, password }
       if (roomNumber) {
-        loginData.roomNumber = roomNumber
+        loginData.room_number = roomNumber // Use underscore format expected by Django
       }
 
-      const response = await apiCall<{ user: User; token: string; refreshToken: string }>('/auth/login', {
+      console.log('Login attempt with data:', loginData)
+
+      const response = await apiCall<{ user: User; access: string; refresh: string }>('/auth/login/', {
         method: 'POST',
         body: JSON.stringify(loginData),
       })
 
-      // Store the JWT token
-      setAuthToken(response.token)
+      console.log('Login response received:', response)
+
+      // Store the JWT access token
+      setAuthToken(response.access)
       
-      // Store refresh token if needed
-      if (typeof window !== 'undefined' && response.refreshToken) {
-        localStorage.setItem('refresh-token', response.refreshToken)
+      // Store refresh token
+      if (typeof window !== 'undefined' && response.refresh) {
+        localStorage.setItem('refresh-token', response.refresh)
       }
 
+      console.log('Login successful, returning user:', response.user)
       return response.user
     } catch (error) {
-      console.error('Login failed:', error)
+      console.error('Login failed with error:', error)
       return null
     }
   },
 
   async logout(): Promise<void> {
     try {
-      await apiCall('/auth/logout', { method: 'POST' })
+      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('refresh-token') : null
+      if (refreshToken) {
+        await apiCall('/auth/logout/', { 
+          method: 'POST',
+          body: JSON.stringify({ refresh_token: refreshToken })
+        })
+      }
     } catch (error) {
       console.error('Logout failed:', error)
     } finally {
@@ -113,7 +142,7 @@ export const authService = {
 
   async getCurrentUser(): Promise<User | null> {
     try {
-      return await apiCall<User>('/auth/me')
+      return await apiCall<User>('/auth/me/')
     } catch (error) {
       console.error('Get current user failed:', error)
       return null
@@ -157,12 +186,15 @@ export const userService = {
     if (params?.isActive !== undefined) queryParams.append('isActive', params.isActive.toString())
     
     const query = queryParams.toString()
-    return apiCall<User[]>(`/users${query ? `?${query}` : ''}`)
+    // FIX APPLIED: Ensures trailing slash is present before query string
+    const endpoint = `/users/${query ? `?${query}` : ''}`
+    const data = await apiCall<User[] | { results: User[] }>(endpoint)
+    return Array.isArray(data) ? data : data.results || []
   },
 
   async getUserById(id: string): Promise<User | null> {
     try {
-      return await apiCall<User>(`/users/${id}`)
+      return await apiCall<User>(`/users/${id}/`)
     } catch (error) {
       console.error('Get user by ID failed:', error)
       return null
@@ -170,25 +202,25 @@ export const userService = {
   },
 
   async createUser(user: Omit<User, "id" | "createdAt">): Promise<User> {
-    return apiCall<User>('/users', { 
+    return apiCall<User>('/users/', { 
       method: 'POST', 
       body: JSON.stringify(user) 
     })
   },
 
   async updateUser(id: string, updates: Partial<User>): Promise<User> {
-    return apiCall<User>(`/users/${id}`, { 
+    return apiCall<User>(`/users/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
   },
 
   async deleteUser(id: string): Promise<void> {
-    return apiCall(`/users/${id}`, { method: 'DELETE' })
+    return apiCall(`/users/${id}/`, { method: 'DELETE' })
   },
 
   async changePassword(id: string, currentPassword: string, newPassword: string): Promise<void> {
-    return apiCall(`/users/${id}/change-password`, {
+    return apiCall(`/users/${id}/change-password/`, {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword })
     })
@@ -203,12 +235,15 @@ export const menuService = {
     if (params?.isAvailable !== undefined) queryParams.append('isAvailable', params.isAvailable.toString())
     
     const query = queryParams.toString()
-    return apiCall<MenuItem[]>(`/menu${query ? `?${query}` : ''}`)
+    // FIX APPLIED: Ensures trailing slash is present before query string
+    const endpoint = `/menu/${query ? `?${query}` : ''}`
+    const data = await apiCall<MenuItem[] | { results: MenuItem[] }>(endpoint)
+    return Array.isArray(data) ? data : data.results || []
   },
 
   async getMenuItemById(id: string): Promise<MenuItem | null> {
     try {
-      return await apiCall<MenuItem>(`/menu/${id}`)
+      return await apiCall<MenuItem>(`/menu/${id}/`)
     } catch (error) {
       console.error('Get menu item by ID failed:', error)
       return null
@@ -216,21 +251,21 @@ export const menuService = {
   },
 
   async createMenuItem(item: Omit<MenuItem, "id">): Promise<MenuItem> {
-    return apiCall<MenuItem>('/menu', { 
+    return apiCall<MenuItem>('/menu/', { 
       method: 'POST', 
       body: JSON.stringify(item) 
     })
   },
 
   async updateMenuItem(id: string, updates: Partial<MenuItem>): Promise<MenuItem> {
-    return apiCall<MenuItem>(`/menu/${id}`, { 
+    return apiCall<MenuItem>(`/menu/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
   },
 
   async deleteMenuItem(id: string): Promise<void> {
-    return apiCall(`/menu/${id}`, { method: 'DELETE' })
+    return apiCall(`/menu/${id}/`, { method: 'DELETE' })
   },
 }
 
@@ -253,12 +288,15 @@ export const orderService = {
     if (params?.endDate) queryParams.append('endDate', params.endDate)
     
     const query = queryParams.toString()
-    return apiCall<Order[]>(`/orders${query ? `?${query}` : ''}`)
+    // FIX APPLIED: Ensures trailing slash is present before query string
+    const endpoint = `/orders/${query ? `?${query}` : ''}`
+    const data = await apiCall<Order[] | { results: Order[] }>(endpoint)
+    return Array.isArray(data) ? data : data.results || []
   },
 
   async getOrderById(id: string): Promise<Order | null> {
     try {
-      return await apiCall<Order>(`/orders/${id}`)
+      return await apiCall<Order>(`/orders/${id}/`)
     } catch (error) {
       console.error('Get order by ID failed:', error)
       return null
@@ -266,14 +304,14 @@ export const orderService = {
   },
 
   async createOrder(order: Omit<Order, "id" | "orderNumber" | "createdAt" | "updatedAt">): Promise<Order> {
-    return apiCall<Order>('/orders', { 
+    return apiCall<Order>('/orders/', { 
       method: 'POST', 
       body: JSON.stringify(order) 
     })
   },
 
   async updateOrder(id: string, updates: Partial<Order>): Promise<Order> {
-    return apiCall<Order>(`/orders/${id}`, { 
+    return apiCall<Order>(`/orders/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
@@ -288,12 +326,15 @@ export const tableService = {
     if (params?.section) queryParams.append('section', params.section)
     
     const query = queryParams.toString()
-    return apiCall<Table[]>(`/tables${query ? `?${query}` : ''}`)
+    // FIX APPLIED: Ensures trailing slash is present before query string
+    const endpoint = `/tables/${query ? `?${query}` : ''}`
+    const data = await apiCall<Table[] | { results: Table[] }>(endpoint)
+    return Array.isArray(data) ? data : data.results || []
   },
 
   async getTableById(id: string): Promise<Table | null> {
     try {
-      return await apiCall<Table>(`/tables/${id}`)
+      return await apiCall<Table>(`/tables/${id}/`)
     } catch (error) {
       console.error('Get table by ID failed:', error)
       return null
@@ -301,7 +342,7 @@ export const tableService = {
   },
 
   async updateTable(id: string, updates: Partial<Table>): Promise<Table> {
-    return apiCall<Table>(`/tables/${id}`, { 
+    return apiCall<Table>(`/tables/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
@@ -316,12 +357,15 @@ export const inventoryService = {
     if (params?.lowStock !== undefined) queryParams.append('lowStock', params.lowStock.toString())
     
     const query = queryParams.toString()
-    return apiCall<InventoryItem[]>(`/inventory${query ? `?${query}` : ''}`)
+    // FIX APPLIED: Ensures trailing slash is present before query string
+    const endpoint = `/inventory/${query ? `?${query}` : ''}`
+    const data = await apiCall<InventoryItem[] | { results: InventoryItem[] }>(endpoint)
+    return Array.isArray(data) ? data : data.results || []
   },
 
   async getInventoryItemById(id: string): Promise<InventoryItem | null> {
     try {
-      return await apiCall<InventoryItem>(`/inventory/${id}`)
+      return await apiCall<InventoryItem>(`/inventory/${id}/`)
     } catch (error) {
       console.error('Get inventory item by ID failed:', error)
       return null
@@ -329,25 +373,25 @@ export const inventoryService = {
   },
 
   async createInventoryItem(item: Omit<InventoryItem, "id">): Promise<InventoryItem> {
-    return apiCall<InventoryItem>('/inventory', { 
+    return apiCall<InventoryItem>('/inventory/', { 
       method: 'POST', 
       body: JSON.stringify(item) 
     })
   },
 
   async updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem> {
-    return apiCall<InventoryItem>(`/inventory/${id}`, { 
+    return apiCall<InventoryItem>(`/inventory/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
   },
 
   async getLowStockItems(): Promise<InventoryItem[]> {
-    return apiCall<InventoryItem[]>('/inventory/low-stock')
+    return apiCall<InventoryItem[]>('/inventory/low-stock/')
   },
 
   async trackWaste(itemId: string, quantity: number, reason: string): Promise<void> {
-    return apiCall('/inventory/waste', {
+    return apiCall('/inventory/waste/', {
       method: 'POST',
       body: JSON.stringify({ itemId, quantity, reason })
     })
@@ -357,15 +401,15 @@ export const inventoryService = {
 // Dashboard
 export const dashboardService = {
   async getStats(): Promise<DashboardStats> {
-    return apiCall<DashboardStats>('/dashboard/stats')
+    return apiCall<DashboardStats>('/dashboard/stats/')
   },
 
   async getSalesData(days = 7): Promise<SalesData[]> {
-    return apiCall<SalesData[]>(`/dashboard/sales?days=${days}`)
+    return apiCall<SalesData[]>(`/dashboard/sales/?days=${days}`)
   },
 
   async getCategorySales(): Promise<CategorySales[]> {
-    return apiCall<CategorySales[]>('/dashboard/category-sales')
+    return apiCall<CategorySales[]>('/dashboard/category-sales/')
   },
 }
 
@@ -377,12 +421,15 @@ export const guestService = {
     if (params?.roomNumber) queryParams.append('roomNumber', params.roomNumber)
     
     const query = queryParams.toString()
-    return apiCall<Guest[]>(`/guests${query ? `?${query}` : ''}`)
+    // FIX APPLIED: Ensures trailing slash is present before query string
+    const endpoint = `/guests/${query ? `?${query}` : ''}`
+    const data = await apiCall<Guest[] | { results: Guest[] }>(endpoint)
+    return Array.isArray(data) ? data : data.results || []
   },
 
   async getGuestById(id: string): Promise<Guest | null> {
     try {
-      return await apiCall<Guest>(`/guests/${id}`)
+      return await apiCall<Guest>(`/guests/${id}/`)
     } catch (error) {
       console.error('Get guest by ID failed:', error)
       return null
@@ -390,18 +437,18 @@ export const guestService = {
   },
 
   async checkInGuest(guest: Omit<Guest, "id" | "checkInTime" | "status">): Promise<Guest> {
-    return apiCall<Guest>('/guests/check-in', { 
+    return apiCall<Guest>('/guests/check-in/', { 
       method: 'POST', 
       body: JSON.stringify(guest) 
     })
   },
 
   async checkOutGuest(id: string): Promise<Guest> {
-    return apiCall<Guest>(`/guests/${id}/check-out`, { method: 'POST' })
+    return apiCall<Guest>(`/guests/${id}/check-out/`, { method: 'POST' })
   },
 
   async updateGuest(id: string, updates: Partial<Guest>): Promise<Guest> {
-    return apiCall<Guest>(`/guests/${id}`, { 
+    return apiCall<Guest>(`/guests/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
@@ -417,18 +464,21 @@ export const serviceRequestService = {
     if (params?.roomNumber) queryParams.append('roomNumber', params.roomNumber)
     
     const query = queryParams.toString()
-    return apiCall<ServiceRequest[]>(`/service-requests${query ? `?${query}` : ''}`)
+    // FIX APPLIED: Ensures trailing slash is present before query string
+    const endpoint = `/service-requests/${query ? `?${query}` : ''}`
+    const data = await apiCall<ServiceRequest[] | { results: ServiceRequest[] }>(endpoint)
+    return Array.isArray(data) ? data : data.results || []
   },
 
   async createServiceRequest(request: Omit<ServiceRequest, "id" | "createdAt" | "updatedAt">): Promise<ServiceRequest> {
-    return apiCall<ServiceRequest>('/service-requests', { 
+    return apiCall<ServiceRequest>('/service-requests/', { 
       method: 'POST', 
       body: JSON.stringify(request) 
     })
   },
 
   async updateServiceRequest(id: string, updates: Partial<ServiceRequest>): Promise<ServiceRequest> {
-    return apiCall<ServiceRequest>(`/service-requests/${id}`, { 
+    return apiCall<ServiceRequest>(`/service-requests/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
@@ -472,7 +522,8 @@ export const getReports = async (from?: Date, to?: Date) => {
   if (from) params.append('from', from.toISOString())
   if (to) params.append('to', to.toISOString())
   const query = params.toString()
-  return apiCall<any[]>(`/reports${query ? `?${query}` : ''}`)
+  const endpoint = `/reports/${query ? `?${query}` : ''}`
+  return apiCall<any[]>(endpoint)
 }
 
 // Export token management functions for use in other parts of the app

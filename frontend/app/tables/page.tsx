@@ -15,6 +15,7 @@ export default function TablesPage() {
   const [tables, setTables] = useState<Table[]>([])
   const [waiters, setWaiters] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
   const [reservationDialogOpen, setReservationDialogOpen] = useState(false)
@@ -25,11 +26,17 @@ export default function TablesPage() {
 
   const fetchData = async () => {
     try {
-      const [tablesData, usersData] = await Promise.all([tableService.getTables(), userService.getUsers()])
+      const [tablesData, usersData] = await Promise.all([
+        tableService.getTables(),
+        userService.getUsers(),
+      ])
       setTables(tablesData)
       setWaiters(usersData.filter((u) => u.role === "waiter"))
-    } catch (error) {
-      console.error("Failed to fetch tables:", error)
+    } catch (err: any) {
+      console.error("❌ Failed to fetch data:", err)
+      setError(err.message || "Failed to fetch data from server")
+      setTables([])
+      setWaiters([])
     } finally {
       setLoading(false)
     }
@@ -38,12 +45,12 @@ export default function TablesPage() {
   const handleUpdateTable = async (tableId: string, updates: Partial<Table>) => {
     try {
       const updatedTable = await tableService.updateTable(tableId, updates)
-      setTables(tables.map((t) => (t.id === tableId ? updatedTable : t)))
+      setTables((prev) => prev.map((t) => (t.id === tableId ? updatedTable : t)))
       if (selectedTable?.id === tableId) {
         setSelectedTable(updatedTable)
       }
-    } catch (error) {
-      console.error("Failed to update table:", error)
+    } catch (err) {
+      console.error("❌ Failed to update table:", err)
     }
   }
 
@@ -61,7 +68,6 @@ export default function TablesPage() {
   const occupiedTables = tables.filter((t) => t.status === "occupied")
   const reservedTables = tables.filter((t) => t.status === "reserved")
   const cleaningTables = tables.filter((t) => t.status === "cleaning")
-
   const sections = [...new Set(tables.map((t) => t.section).filter(Boolean))] as string[]
 
   if (loading) {
@@ -71,6 +77,19 @@ export default function TablesPage() {
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading tables...</p>
+          </div>
+        </div>
+      </AppLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center text-red-600">
+            <p className="mb-2 font-bold">Error</p>
+            <p>{error}</p>
           </div>
         </div>
       </AppLayout>
