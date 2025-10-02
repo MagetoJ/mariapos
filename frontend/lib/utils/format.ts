@@ -34,8 +34,17 @@ export function formatTime(date: string | Date): string {
   })
 }
 
-export function getRelativeTime(date: string | Date): string {
+export function getRelativeTime(date?: string | Date | null): string {
+  if (!date) {
+    return "Unknown time"
+  }
+
   const d = typeof date === "string" ? new Date(date) : date
+
+  if (Number.isNaN(d?.getTime())) {
+    return "Unknown time"
+  }
+
   const now = new Date()
   const diffMs = now.getTime() - d.getTime()
   const diffMins = Math.floor(diffMs / 60000)

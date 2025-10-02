@@ -60,75 +60,81 @@ export function OrderList({ orders, onViewOrder, onUpdateOrder }: OrderListProps
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {orders.map((order) => (
-        <Card key={order.id} className="p-4 hover:shadow-md transition-shadow">
-          <div className="space-y-3">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-bold text-lg">{order.orderNumber}</p>
-                <p className="text-sm text-muted-foreground">{order.customerName}</p>
-              </div>
-              <Badge variant="outline" className={cn("capitalize", statusColors[order.status])}>
-                {order.status}
-              </Badge>
-            </div>
+      {orders.map((order) => {
+        const displayType = order.type ? order.type.replace("-", " ") : "Unknown"
+        const itemsCount = Array.isArray(order.items) ? order.items.length : 0
+        const orderTotal = typeof order.total === "number" ? order.total : Number(order.total ?? 0)
 
-            <div className="space-y-1 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Type:</span>
-                <Badge variant="secondary" className="capitalize">
-                  {order.type.replace("-", " ")}
+        return (
+          <Card key={order.id} className="p-4 hover:shadow-md transition-shadow">
+            <div className="space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="font-bold text-lg">{order.orderNumber}</p>
+                  <p className="text-sm text-muted-foreground">{order.customerName}</p>
+                </div>
+                <Badge variant="outline" className={cn("capitalize", statusColors[order.status])}>
+                  {order.status}
                 </Badge>
               </div>
-              {order.tableId && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Table:</span>
-                  <span className="font-medium">
-                    {tables.find((t) => t.id === order.tableId)?.number || order.tableId}
-                  </span>
-                </div>
-              )}
-              {order.roomNumber && (
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Room:</span>
-                  <span className="font-medium">{order.roomNumber}</span>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Items:</span>
-                <span className="font-medium">{order.items.length}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Total:</span>
-                <span className="font-bold text-primary">{formatCurrency(order.total)}</span>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              {getRelativeTime(order.createdAt)}
-              {order.waiter && <span>• {order.waiter.name}</span>}
-            </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Type:</span>
+                  <Badge variant="secondary" className="capitalize">
+                    {displayType}
+                  </Badge>
+                </div>
+                {order.tableId && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Table:</span>
+                    <span className="font-medium">
+                      {tables.find((t) => t.id === order.tableId)?.number || order.tableId}
+                    </span>
+                  </div>
+                )}
+                {order.roomNumber && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Room:</span>
+                    <span className="font-medium">{order.roomNumber}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Items:</span>
+                  <span className="font-medium">{itemsCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Total:</span>
+                  <span className="font-bold text-primary">{formatCurrency(orderTotal)}</span>
+                </div>
+              </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" className="flex-1 bg-transparent" onClick={() => onViewOrder(order)}>
-                <Eye className="mr-2 h-4 w-4" />
-                View
-              </Button>
-              {canUpdateStatus(order) && getNextStatus(order.status) && (
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => onUpdateOrder(order.id, { status: getNextStatus(order.status) as any })}
-                >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  {getNextStatus(order.status)}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                {getRelativeTime(order.createdAt)}
+                {order.waiter && <span>• {order.waiter.name}</span>}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" size="sm" className="flex-1 bg-transparent" onClick={() => onViewOrder(order)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  View
                 </Button>
-              )}
+                {canUpdateStatus(order) && getNextStatus(order.status) && (
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => onUpdateOrder(order.id, { status: getNextStatus(order.status) as any })}
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    {getNextStatus(order.status)}
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
-        </Card>
-      ))}
+          </Card>
+        )
+      })}
     </div>
   )
 }

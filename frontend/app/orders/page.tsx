@@ -1,161 +1,133 @@
-// Core Types for Maria Havens POS System
+"use client"
 
-export type UserRole = "admin" | "manager" | "receptionist" | "waiter" | "kitchen" | "cashier" | "guest"
+import { useEffect, useState } from "react"
+import { AppLayout } from "@/components/layout/app-layout"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { OrderList } from "@/components/orders/order-list"
+import { CreateOrderDialog } from "@/components/orders/create-order-dialog"
+import { menuService, orderService, tableService } from "@/lib/api/data-service"
+import type { MenuItem, Order, Table } from "@/lib/types"
+import { Plus } from "lucide-react"
 
-export type OrderStatus = "pending" | "preparing" | "ready" | "served" | "completed" | "cancelled"
+export default function OrdersPage() {
+  const [orders, setOrders] = useState<Order[]>([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [tables, setTables] = useState<Table[]>([])
 
-export type OrderType = "dine-in" | "takeaway" | "room-service"
+  useEffect(() => {
+    void fetchOrders()
+    void fetchSupportingData()
+  }, [])
 
-export type TableStatus = "available" | "occupied" | "reserved" | "cleaning"
+  const fetchOrders = async () => {
+    try {
+      setLoading(true)
+      const data = await orderService.getOrders()
+      setOrders(data)
+    } catch (error) {
+      console.error("Failed to fetch orders:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
-export type PaymentMethod = "cash" | "card" | "mpesa" | "bank-transfer"
+  const fetchSupportingData = async () => {
+    try {
+      const [menuData, tableData] = await Promise.all([
+        menuService.getMenuItems(),
+        tableService.getTables(),
+      ])
+      setMenuItems(menuData)
+      setTables(tableData)
+    } catch (error) {
+      console.error("Failed to fetch supporting data:", error)
+    }
+  }
 
-export type PaymentStatus = "pending" | "completed" | "refunded" | "failed"
+  const handleViewOrder = (order: Order) => {
+    console.info("View order", order)
+  }
 
-export interface User {
-  id: string
-  name: string
-  email: string
-  role: UserRole
-  phone?: string
-  avatar?: string
-  isActive: boolean
-  createdAt: string
-  acceptedTermsAt?: string
-  termsVersion?: string
-  roomNumber?: string // For guest accounts linked to rooms
-}
+  const handleUpdateOrder = async (orderId: string, updates: Partial<Order>) => {
+    try {
+      await orderService.updateOrder(orderId, updates)
+      await fetchOrders()
+    } catch (error) {
+      console.error("Failed to update order:", error)
+    }
+  }
 
-export interface MenuItem {
-  id: string
-  name: string
-  description: string
-  category: string
-  price: number
-  // UPDATED: image is the File/URL from the server's database field
-  image?: string | File | null 
-  // ADDED: image_url is the absolute path to display the image
-  image_url?: string | null
-  isAvailable: boolean
-  preparationTime: number // in minutes
-  ingredients?: string[]
-  allergens?: string[]
-}
+  const handleCreateOrder = async (orderData: Omit<Order, "id" | "orderNumber" | "createdAt" | "updatedAt">) => {
+    try {
+      await orderService.createOrder(orderData)
+      setCreateDialogOpen(false)
+      await fetchOrders()
+    } catch (error) {
+      console.error("Failed to create order:", error)
+    }
+  }
 
-export interface OrderItem {
-  id: string
-  menuItemId: string
-  menuItem: MenuItem
-  quantity: number
-  price: number
-  notes?: string
-}
+  const filteredOrders = orders.filter((order) => {
+    const normalizedOrderNumber = order.orderNumber?.toLowerCase() ?? ""
+    return normalizedOrderNumber.includes(searchQuery.toLowerCase())
+  })
 
-export interface Order {
-  id: string
-  orderNumber: string
-  tableId?: string
-  tableNumber?: string
-  guestId?: string
-  guestName?: string
-  customerName?: string // Added this line to resolve the error
-  items: OrderItem[]
-  total: number
-  status: OrderStatus
-  type: OrderType
-  waiterId: string
-  waiterName: string
-  createdAt: string
-  updatedAt: string
-}
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
+            <p className="text-muted-foreground">Manage and monitor ongoing orders</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={fetchOrders}>
+              Refresh
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              New Order
+            </Button>
+          </div>
+        </div>
 
-export interface Table {
-  id: string
-  number: string
-  capacity: number
-  status: TableStatus
-  section: string
-  currentOrderId?: string
-}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-sm">
+            <Input
+              placeholder="Search orders by number..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
+          </div>
+        </div>
 
-export interface InventoryItem {
-  id: string
-  name: string
-  category: string
-  currentStock: number
-  unit: string
-  unitCost: number
-  minimumStock: number
-  maximumStock: number
-  supplier: string
-  lastRestock: string
-}
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading orders...</p>
+            </div>
+          </div>
+        ) : (
+          <OrderList
+            orders={filteredOrders}
+            onViewOrder={handleViewOrder}
+            onUpdateOrder={handleUpdateOrder}
+          />
+        )}
+      </div>
 
-export interface StockMovement {
-  id: string
-  itemId: string
-  type: "in" | "out" | "waste" | "adjustment"
-  quantity: number
-  reason?: string
-  performedBy: string
-  createdAt: string
-}
-
-export interface Guest {
-  id: string
-  name: string
-  email?: string
-  phone: string
-  roomNumber: string
-  checkInDate: string
-  checkOutDate: string
-  status: "checked-in" | "checked-out"
-  totalSpent: number
-}
-
-export interface DashboardStats {
-  todayRevenue: number
-  todayOrders: number
-  activeOrders: number
-  availableTables: number
-  customersServed: number
-  averageOrderValue: number
-  salesGrowth: number
-  ordersGrowth: number
-  pendingServiceRequests: number
-}
-
-export interface SalesData {
-  date: string
-  total_sales: number
-  orders: number
-}
-
-export interface CategorySales {
-  category: string
-  total_sales: number
-  orders: number
-}
-
-export interface ServiceRequest {
-  id: string
-  guestId: string
-  guestName: string
-  roomNumber: string
-  type: "housekeeping" | "maintenance" | "room-service" | "concierge" | "other"
-  description: string
-  priority: "low" | "medium" | "high"
-  status: "pending" | "in-progress" | "completed" | "cancelled"
-  createdAt: string
-  updatedAt: string
-}
-
-export interface Receipt {
-  id: string
-  orderId: string
-  orderTotal: number
-  paymentMethod: PaymentMethod
-  paymentStatus: PaymentStatus
-  createdAt: string
-  customerEmail?: string
+      <CreateOrderDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreateOrder={handleCreateOrder}
+        menuItems={menuItems}
+        tables={tables}
+      />
+    </AppLayout>
+  )
 }

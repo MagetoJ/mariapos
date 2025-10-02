@@ -42,6 +42,66 @@ function removeAuthToken(): void {
   }
 }
 
+const API_BASE_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '')
+
+type MenuItemApiResponse = {
+  id: string
+  name: string
+  description?: string
+  category?: string
+  price?: number | string
+  image?: string | null
+  image_url?: string | null
+  is_available?: boolean
+  isAvailable?: boolean
+  preparation_time?: number | string
+  preparationTime?: number | string
+  ingredients?: string[]
+  allergens?: string[]
+}
+
+function resolveMediaUrl(path?: string | null): string | null {
+  if (!path) {
+    return null
+  }
+
+  if (/^https?:\/\//i.test(path)) {
+    return path
+  }
+
+  const base = API_BASE_ORIGIN || ''
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  return `${base}${normalizedPath}`
+}
+
+function transformMenuItem(data: MenuItemApiResponse): MenuItem {
+  const price = typeof data.price === 'string' ? Number(data.price) : data.price
+  const preparationTimeValue =
+    data.preparation_time ?? data.preparationTime ?? 0
+  const preparationTime =
+    typeof preparationTimeValue === 'string'
+      ? Number(preparationTimeValue)
+      : preparationTimeValue ?? 0
+
+  const isAvailableValue = data.is_available ?? data.isAvailable
+
+  const imageUrl = data.image_url ?? resolveMediaUrl(data.image)
+
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description ?? '',
+    category: data.category ?? '',
+    price: Number(price) || 0,
+    image: data.image ?? null,
+    image_url: imageUrl,
+    isAvailable: Boolean(isAvailableValue),
+    preparationTime: Number(preparationTime) || 0,
+    ingredients: data.ingredients,
+    allergens: data.allergens,
+  }
+}
+
 // Helper function for Django API calls
 // MODIFICATION: Check for FormData and adjust headers accordingly
 async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -232,18 +292,21 @@ export const menuService = {
   async getMenuItems(params?: { category?: string; isAvailable?: boolean }): Promise<MenuItem[]> {
     const queryParams = new URLSearchParams()
     if (params?.category) queryParams.append('category', params.category)
-    if (params?.isAvailable !== undefined) queryParams.append('isAvailable', params.isAvailable.toString())
-    
+    if (params?.isAvailable !== undefined) {
+      queryParams.append('is_available', params.isAvailable ? 'true' : 'false')
+    }
+
     const query = queryParams.toString()
-    // FIX APPLIED: Correct URL to include 'menu-items' path
     const endpoint = `/menu/menu-items/${query ? `?${query}` : ''}`
-    const data = await apiCall<MenuItem[] | { results: MenuItem[] }>(endpoint)
-    return Array.isArray(data) ? data : data.results || []
+    const data = await apiCall<MenuItemApiResponse[] | { results: MenuItemApiResponse[] }>(endpoint)
+    const items = Array.isArray(data) ? data : data.results || []
+    return items.map(transformMenuItem)
   },
 
   async getMenuItemById(id: string): Promise<MenuItem | null> {
     try {
-      return await apiCall<MenuItem>(`/menu/menu-items/${id}/`)
+      const item = await apiCall<MenuItemApiResponse>(`/menu/menu-items/${id}/`)
+      return transformMenuItem(item)
     } catch (error) {
       console.error('Get menu item by ID failed:', error)
       return null
@@ -252,18 +315,20 @@ export const menuService = {
 
   // MODIFICATION: Accept FormData for file uploads
   async createMenuItem(itemData: FormData): Promise<MenuItem> {
-    return apiCall<MenuItem>('/menu/menu-items/', { 
-      method: 'POST', 
-      body: itemData // Pass the FormData object directly
+    const created = await apiCall<MenuItemApiResponse>('/menu/menu-items/', {
+      method: 'POST',
+      body: itemData,
     })
+    return transformMenuItem(created)
   },
 
   // MODIFICATION: Accept FormData for file uploads
   async updateMenuItem(id: string, updates: FormData): Promise<MenuItem> {
-    return apiCall<MenuItem>(`/menu/menu-items/${id}/`, { 
-      method: 'PATCH', // Use PATCH for partial updates, PUT for full replacement
-      body: updates // Pass the FormData object directly
+    const updated = await apiCall<MenuItemApiResponse>(`/menu/menu-items/${id}/`, {
+      method: 'PATCH',
+      body: updates,
     })
+    return transformMenuItem(updated)
   },
 
   async deleteMenuItem(id: string): Promise<void> {
