@@ -3,6 +3,7 @@ from django.core.validators import MinValueValidator, DecimalValidator
 import uuid
 import os
 
+# --- Helper functions (already present, ensuring they are complete) ---
 def upload_category_image(instance, filename):
     """Generate upload path for category images"""
     ext = filename.split('.')[-1]
@@ -14,6 +15,7 @@ def upload_menu_item_image(instance, filename):
     ext = filename.split('.')[-1]
     filename = f"{instance.id}.{ext}"
     return os.path.join('menu_items', filename)
+# ---------------------------------------------------------------------
 
 class Category(models.Model):
     """Menu category model"""
@@ -31,97 +33,62 @@ class Category(models.Model):
         ordering = ['display_order', 'name']
         verbose_name = 'Category'
         verbose_name_plural = 'Categories'
-    
+        
     def __str__(self):
         return self.name
-    
-    @property
-    def image_url(self):
-        """Generate full URL for category image"""
-        if self.image:
-            from django.conf import settings
-            return f"{settings.MEDIA_URL}{self.image.name}"
-        return None
 
 class MenuItem(models.Model):
     """Menu item model"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='menu_items')
-    price = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2,
-        validators=[MinValueValidator(0)]
-    )
+    price = models.DecimalField(max_digits=8, decimal_places=2, validators=[MinValueValidator(0)])
+    
+    # --- ADDED: Image Field for Menu Item ---
     image = models.ImageField(upload_to=upload_menu_item_image, blank=True, null=True)
-    
-    # Availability and status
+    # ------------------------------------------
+
     is_available = models.BooleanField(default=True)
-    is_popular = models.BooleanField(default=False)
-    is_vegetarian = models.BooleanField(default=False)
-    is_vegan = models.BooleanField(default=False)
-    is_gluten_free = models.BooleanField(default=False)
-    
-    # Preparation details
     preparation_time = models.PositiveIntegerField(
-        help_text="Preparation time in minutes",
-        default=15
+        default=15, 
+        help_text="Time in minutes"
     )
-    calories = models.PositiveIntegerField(blank=True, null=True)
-    spice_level = models.CharField(
-        max_length=10,
-        choices=[
-            ('mild', 'Mild'),
-            ('medium', 'Medium'),
-            ('hot', 'Hot'),
-            ('extra_hot', 'Extra Hot')
-        ],
-        default='mild'
-    )
-    
-    # Inventory tracking
-    requires_ingredients = models.BooleanField(default=True)
-    
-    # Display settings
-    display_order = models.PositiveIntegerField(default=0)
-    
-    # Timestamps
+    is_special = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         db_table = 'menu_items'
-        ordering = ['category', 'display_order', 'name']
+        ordering = ['name']
         verbose_name = 'Menu Item'
         verbose_name_plural = 'Menu Items'
-        unique_together = ['category', 'name']
-    
-    def __str__(self):
-        return f"{self.name} - {self.category.name}"
-    
+        
     @property
     def price_str(self):
-        """Format price for display"""
-        return f"KSh {self.price:,.2f}"
-    
+        return f"${self.price}"
+        
     @property
     def image_url(self):
-        """Generate full URL for menu item image"""
-        if self.image:
-            from django.conf import settings
-            return f"{settings.MEDIA_URL}{self.image.name}"
-        return None
+        """Returns the full image URL if an image exists."""
+        return self.image.url if self.image else None
+
+    def __str__(self):
+        return self.name
 
 class MenuItemIngredient(models.Model):
-    """Relationship between menu items and inventory ingredients"""
+    """Defines ingredients and quantities needed for a menu item"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='ingredients')
     ingredient_name = models.CharField(max_length=100)
-    quantity_required = models.DecimalField(max_digits=8, decimal_places=3)
-    unit = models.CharField(max_length=20)  # kg, liters, pieces, etc.
+    quantity_required = models.DecimalField(
+        max_digits=8, 
+        decimal_places=2,
+        validators=[MinValueValidator(0.01)]
+    )
+    unit = models.CharField(max_length=20, help_text="e.g., grams, ml, units")
     is_optional = models.BooleanField(default=False)
-    
+
     class Meta:
         db_table = 'menu_item_ingredients'
         unique_together = ['menu_item', 'ingredient_name']
@@ -160,6 +127,6 @@ class MenuItemModifier(models.Model):
         db_table = 'menu_item_modifiers'
         verbose_name = 'Menu Item Modifier'
         verbose_name_plural = 'Menu Item Modifiers'
-    
+
     def __str__(self):
-        return f"{self.menu_item.name} - {self.name}"
+        return f"{self.menu_item.name} modifier: {self.name}"

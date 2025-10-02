@@ -343,14 +343,14 @@ export const inventoryService = {
     
     const query = queryParams.toString()
     // FIX APPLIED: Ensures trailing slash is present before query string
-    const endpoint = `/inventory/${query ? `?${query}` : ''}`
+    const endpoint = `/inventory/items/${query ? `?${query}` : ''}`
     const data = await apiCall<InventoryItem[] | { results: InventoryItem[] }>(endpoint)
     return Array.isArray(data) ? data : data.results || []
   },
 
   async getInventoryItemById(id: string): Promise<InventoryItem | null> {
     try {
-      return await apiCall<InventoryItem>(`/inventory/${id}/`)
+      return await apiCall<InventoryItem>(`/inventory/items/${id}/`)
     } catch (error) {
       console.error('Get inventory item by ID failed:', error)
       return null
@@ -358,21 +358,25 @@ export const inventoryService = {
   },
 
   async createInventoryItem(item: Omit<InventoryItem, "id">): Promise<InventoryItem> {
-    return apiCall<InventoryItem>('/inventory/', { 
+    return apiCall<InventoryItem>('/inventory/items/', { 
       method: 'POST', 
       body: JSON.stringify(item) 
     })
   },
 
   async updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem> {
-    return apiCall<InventoryItem>(`/inventory/${id}/`, { 
+    return apiCall<InventoryItem>(`/inventory/items/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
   },
 
+  async deleteInventoryItem(id: string): Promise<void> {
+    return apiCall(`/inventory/items/${id}/`, { method: 'DELETE' })
+  },
+
   async getLowStockItems(): Promise<InventoryItem[]> {
-    return apiCall<InventoryItem[]>('/inventory/low-stock/')
+    return apiCall<InventoryItem[]>('/inventory/items/low_stock/')
   },
 
   async trackWaste(itemId: string, quantity: number, reason: string): Promise<void> {
@@ -386,15 +390,15 @@ export const inventoryService = {
 // Dashboard
 export const dashboardService = {
   async getStats(): Promise<DashboardStats> {
-    return apiCall<DashboardStats>('/dashboard/stats/')
+    return apiCall<DashboardStats>('/dashboard/dashboard/stats/')
   },
 
   async getSalesData(days = 7): Promise<SalesData[]> {
-    return apiCall<SalesData[]>(`/dashboard/sales/?days=${days}`)
+    return apiCall<SalesData[]>(`/dashboard/dashboard/sales_data/?days=${days}`)
   },
 
   async getCategorySales(): Promise<CategorySales[]> {
-    return apiCall<CategorySales[]>('/dashboard/category-sales/')
+    return apiCall<CategorySales[]>('/dashboard/dashboard/category_sales/')
   },
 }
 
@@ -407,14 +411,14 @@ export const guestService = {
     
     const query = queryParams.toString()
     // FIX APPLIED: Ensures trailing slash is present before query string
-    const endpoint = `/guests/${query ? `?${query}` : ''}`
+    const endpoint = `/guests/guests/${query ? `?${query}` : ''}`
     const data = await apiCall<Guest[] | { results: Guest[] }>(endpoint)
     return Array.isArray(data) ? data : data.results || []
   },
 
   async getGuestById(id: string): Promise<Guest | null> {
     try {
-      return await apiCall<Guest>(`/guests/${id}/`)
+      return await apiCall<Guest>(`/guests/guests/${id}/`)
     } catch (error) {
       console.error('Get guest by ID failed:', error)
       return null
@@ -422,21 +426,25 @@ export const guestService = {
   },
 
   async checkInGuest(guest: Omit<Guest, "id" | "checkInTime" | "status">): Promise<Guest> {
-    return apiCall<Guest>('/guests/check-in/', { 
+    return apiCall<Guest>('/guests/guests/', { 
       method: 'POST', 
       body: JSON.stringify(guest) 
     })
   },
 
   async checkOutGuest(id: string): Promise<Guest> {
-    return apiCall<Guest>(`/guests/${id}/check-out/`, { method: 'POST' })
+    return apiCall<Guest>(`/guests/guests/${id}/check_out/`, { method: 'POST' })
   },
 
   async updateGuest(id: string, updates: Partial<Guest>): Promise<Guest> {
-    return apiCall<Guest>(`/guests/${id}/`, { 
+    return apiCall<Guest>(`/guests/guests/${id}/`, { 
       method: 'PATCH', 
       body: JSON.stringify(updates) 
     })
+  },
+
+  async deleteGuest(id: string): Promise<void> {
+    return apiCall(`/guests/guests/${id}/`, { method: 'DELETE' })
   },
 }
 

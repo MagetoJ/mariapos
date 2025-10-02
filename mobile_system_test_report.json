@@ -1,0 +1,57 @@
+{
+  "timestamp": "2025-10-02T06:49:05.316220",
+  "overall_rate": 55.55555555555556,
+  "total_tests": 9,
+  "passed_tests": 5,
+  "results": {
+    "admin_tests": [
+      {
+        "test": "admin_login_page",
+        "status": "pass"
+      },
+      {
+        "test": "admin_static_files",
+        "status": "pass"
+      }
+    ],
+    "mobile_tests": [
+      {
+        "test": "mobile_access",
+        "status": "fail",
+        "error": "HTTPConnectionPool(host='localhost', port=3000): Read timed out. (read timeout=10)"
+      }
+    ],
+    "data_flow_tests": [
+      {
+        "test": "category_creation",
+        "status": "fail"
+      },
+      {
+        "test": "order_creation",
+        "status": "skip"
+      }
+    ],
+    "api_tests": [
+      {
+        "test": "api_auth",
+        "status": "pass"
+      },
+      {
+        "test": "endpoint_connectivity",
+        "status": "pass",
+        "success_rate": 88.88888888888889
+      }
+    ],
+    "integration_tests": [
+      {
+        "test": "logo_static_file",
+        "status": "pass"
+      },
+      {
+        "test": "receipt_generation",
+        "status": "skip"
+      }
+    ]
+  },
+  "test_data": {}
+}

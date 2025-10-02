@@ -1,14 +1,23 @@
 from rest_framework import serializers
+# Added missing imports needed for consistency, though not directly used in serializers
+from rest_framework.parsers import MultiPartParser, FormParser 
 from .models import Category, MenuItem, MenuItemIngredient, MenuItemModifier
 from inventory.models import InventoryItem
 
 class CategorySerializer(serializers.ModelSerializer):
     """Category serializer"""
+    # Added image_url as a read-only field
+    image_url = serializers.ReadOnlyField(source='image.url')
     
     class Meta:
         model = Category
-        fields = ['id', 'name', 'description', 'image_url', 'image', 'display_order', 'is_active', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        # Ensure 'image' and 'image_url' are in fields
+        fields = ['id', 'name', 'description', 'image', 'image_url', 'display_order', 'is_active', 'created_at']
+        read_only_fields = ['id', 'created_at', 'image_url']
+        # Set extra kwargs to allow file upload/update
+        extra_kwargs = {
+            'image': {'required': False}
+        }
 
 class MenuItemIngredientSerializer(serializers.ModelSerializer):
     """Menu item ingredient serializer"""
@@ -31,78 +40,81 @@ class MenuItemListSerializer(serializers.ModelSerializer):
     
     category_name = serializers.CharField(source='category.name', read_only=True)
     price_str = serializers.ReadOnlyField()
-    
+    # Ensure image URL is available in list view
+    image_url = serializers.ReadOnlyField(source='image_url') # Use property from model
+
     class Meta:
         model = MenuItem
         fields = [
-            'id', 'name', 'description', 'category', 'category_name', 'price', 'price_str',
-            'image_url', 'image', 'is_available', 'is_popular', 'is_vegetarian', 'is_vegan', 
-            'is_gluten_free', 'preparation_time', 'spice_level', 'created_at'
+            'id', 'name', 'description', 'category', 'category_name', 'price', 
+            'price_str', 'image_url', 'is_available', 'preparation_time', 'is_special'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'price_str', 'category_name', 'image_url']
 
 class MenuItemSerializer(serializers.ModelSerializer):
-    """Full menu item serializer with ingredients and modifiers"""
+    """Full menu item serializer for detail views"""
     
     category_name = serializers.CharField(source='category.name', read_only=True)
     ingredients = MenuItemIngredientSerializer(many=True, read_only=True)
     modifiers = MenuItemModifierSerializer(many=True, read_only=True)
     price_str = serializers.ReadOnlyField()
-    
+    # Ensure image URL is available in detail view
+    image_url = serializers.ReadOnlyField(source='image_url') # Use property from model
+
     class Meta:
         model = MenuItem
         fields = [
-            'id', 'name', 'description', 'category', 'category_name', 
-            'price', 'price_str', 'image_url', 'image', 'is_available', 'is_popular',
-            'is_vegetarian', 'is_vegan', 'is_gluten_free', 'preparation_time', 
-            'calories', 'spice_level', 'requires_ingredients', 'display_order',
+            'id', 'name', 'description', 'category', 'category_name', 'price', 
+            'price_str', 'image', 'image_url', 'is_available', 'preparation_time', 'is_special', 
             'ingredients', 'modifiers', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'price_str', 'category_name', 'image_url']
+        # Set extra kwargs to allow file upload/update
+        extra_kwargs = {
+            'image': {'required': False}
+        }
 
 class MenuItemCreateUpdateSerializer(serializers.ModelSerializer):
-    """Menu item serializer for create/update operations"""
+    """Serializer for creation and updates, allowing nested modifications of ingredients/modifiers."""
     
-    ingredients = MenuItemIngredientSerializer(many=True, required=False)
-    modifiers = MenuItemModifierSerializer(many=True, required=False)
+    # Use nested serializers for writable fields
+    ingredients = MenuItemIngredientSerializer(many=True, required=False, allow_null=True)
+    modifiers = MenuItemModifierSerializer(many=True, required=False, allow_null=True)
     
     class Meta:
         model = MenuItem
+        # Ensure 'image' is included
         fields = [
-            'name', 'description', 'category', 'price', 'image_url', 'image',
-            'is_available', 'is_popular', 'is_vegetarian', 'is_vegan', 'is_gluten_free',
-            'preparation_time', 'calories', 'spice_level', 'requires_ingredients',
-            'display_order', 'ingredients', 'modifiers'
+            'id', 'name', 'description', 'category', 'price', 'image', 'is_available', 
+            'preparation_time', 'is_special', 'ingredients', 'modifiers'
         ]
-    
-    def validate_ingredients(self, ingredients_data):
-        """Validate ingredients data"""
-        for ingredient_data in ingredients_data:
-            if not ingredient_data.get('ingredient_name'):
-                raise serializers.ValidationError("Ingredient name is required")
-        return ingredients_data
-    
+        read_only_fields = ['id']
+        # Set extra kwargs to allow file upload/update
+        extra_kwargs = {
+            'image': {'required': False}
+        }
+
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients', [])
         modifiers_data = validated_data.pop('modifiers', [])
         
+        # Note: DRF handles the ImageField creation/update automatically 
+        # when using ModelSerializer with MultiPartParser.
         menu_item = MenuItem.objects.create(**validated_data)
         
-        # Create ingredients
         for ingredient_data in ingredients_data:
             MenuItemIngredient.objects.create(menu_item=menu_item, **ingredient_data)
         
-        # Create modifiers
         for modifier_data in modifiers_data:
             MenuItemModifier.objects.create(menu_item=menu_item, **modifier_data)
-        
+            
         return menu_item
-    
+
     def update(self, instance, validated_data):
         ingredients_data = validated_data.pop('ingredients', None)
         modifiers_data = validated_data.pop('modifiers', None)
-        
-        # Update menu item fields
+
+        # Handle file replacement/update and other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -133,12 +145,15 @@ class CategoryWithItemsSerializer(serializers.ModelSerializer):
     
     menu_items = MenuItemListSerializer(many=True, read_only=True)
     items_count = serializers.SerializerMethodField()
+    # Added image_url as a read-only field
+    image_url = serializers.ReadOnlyField(source='image.url')
     
     class Meta:
         model = Category
+        # Ensure 'image_url' and 'image' are in fields
         fields = ['id', 'name', 'description', 'image_url', 'image', 'display_order', 
                   'is_active', 'menu_items', 'items_count']
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'image_url']
     
     def get_items_count(self, obj):
-        return obj.menu_items.filter(is_available=True).count()
+        return obj.menu_items.count()

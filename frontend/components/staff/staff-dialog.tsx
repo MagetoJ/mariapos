@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createUser, updateUser } from "@/lib/api/data-service"
+import { userService } from "@/lib/api/data-service"
 import type { User } from "@/lib/types"
 
 interface StaffDialogProps {
@@ -19,10 +19,18 @@ interface StaffDialogProps {
 }
 
 export function StaffDialog({ open, onOpenChange, staff, onSuccess }: StaffDialogProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string
+    email: string
+    password?: string
+    confirm_password?: string
+    role: User["role"]
+    isActive: boolean
+  }>({
     name: "",
     email: "",
     password: "",
+    confirm_password: "",
     role: "waiter" as User["role"],
     isActive: true,
   })
@@ -34,6 +42,7 @@ export function StaffDialog({ open, onOpenChange, staff, onSuccess }: StaffDialo
         name: staff.name,
         email: staff.email,
         password: "",
+        confirm_password: "",
         role: staff.role,
         isActive: staff.isActive,
       })
@@ -42,6 +51,7 @@ export function StaffDialog({ open, onOpenChange, staff, onSuccess }: StaffDialo
         name: "",
         email: "",
         password: "",
+        confirm_password: "",
         role: "waiter",
         isActive: true,
       })
@@ -53,16 +63,30 @@ export function StaffDialog({ open, onOpenChange, staff, onSuccess }: StaffDialo
     setLoading(true)
 
     try {
+      // Validate passwords match for new users
+      if (!staff && formData.password !== formData.confirm_password) {
+        alert("Passwords do not match")
+        setLoading(false)
+        return
+      }
+
       if (staff) {
-        await updateUser(staff.id, formData)
+        // For updates, don't send password fields if empty
+        const updateData = { ...formData }
+        if (!updateData.password) {
+          delete updateData.password
+          delete updateData.confirm_password
+        }
+        await userService.updateUser(staff.id, updateData)
       } else {
-        await createUser(formData)
+        await userService.createUser(formData)
       }
       onSuccess()
       onOpenChange(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving staff:", error)
-      alert("Failed to save staff member")
+      const errorMessage = error?.message || "Failed to save staff member"
+      alert(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -97,17 +121,30 @@ export function StaffDialog({ open, onOpenChange, staff, onSuccess }: StaffDialo
           </div>
 
           {!staff && (
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required={!staff}
-                placeholder={staff ? "Leave blank to keep current password" : ""}
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required={!staff}
+                  placeholder={staff ? "Leave blank to keep current password" : ""}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm_password">Confirm Password</Label>
+                <Input
+                  id="confirm_password"
+                  type="password"
+                  value={formData.confirm_password}
+                  onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
+                  required={!staff}
+                  placeholder="Confirm your password"
+                />
+              </div>
+            </>
           )}
 
           <div className="space-y-2">

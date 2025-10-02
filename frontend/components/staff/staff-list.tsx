@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Edit, Key, Trash2 } from "lucide-react"
 import type { User } from "@/lib/types"
-import { deleteUser } from "@/lib/api/data-service"
+import { userService } from "@/lib/api/data-service"
 
 interface StaffListProps {
   staff: User[]
@@ -27,7 +27,7 @@ const roleColors = {
 export function StaffList({ staff, loading, onEdit, onChangePassword, onRefresh }: StaffListProps) {
   const handleDelete = async (id: string, name: string) => {
     if (confirm(`Are you sure you want to delete ${name}? This action cannot be undone.`)) {
-      await deleteUser(id)
+      await userService.deleteUser(id)
       onRefresh()
     }
   }
