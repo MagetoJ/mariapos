@@ -32,7 +32,10 @@ export interface MenuItem {
   description: string
   category: string
   price: number
-  image?: string
+  // UPDATED: image is the File/URL from the server's database field
+  image?: string | File | null 
+  // ADDED: image_url is the absolute path to display the image
+  image_url?: string | null
   isAvailable: boolean
   preparationTime: number // in minutes
   ingredients?: string[]
@@ -46,29 +49,23 @@ export interface OrderItem {
   quantity: number
   price: number
   notes?: string
-  status: OrderStatus
 }
 
 export interface Order {
   id: string
   orderNumber: string
-  type: OrderType
   tableId?: string
-  roomNumber?: string
-  customerId?: string
-  customerName?: string
+  tableNumber?: string
+  guestId?: string
+  guestName?: string
   items: OrderItem[]
-  subtotal: number
-  tax: number
-  discount: number
   total: number
   status: OrderStatus
-  waiterId?: string
-  waiter?: User
-  notes?: string
+  type: OrderType
+  waiterId: string
+  waiterName: string
   createdAt: string
   updatedAt: string
-  completedAt?: string
 }
 
 export interface Table {
@@ -76,51 +73,21 @@ export interface Table {
   number: string
   capacity: number
   status: TableStatus
+  section: string
   currentOrderId?: string
-  waiterId?: string
-  waiter?: User
-  section?: string
-  reservedBy?: string
-  reservedAt?: string
-}
-
-export interface Payment {
-  id: string
-  orderId: string
-  amount: number
-  method: PaymentMethod
-  status: PaymentStatus
-  transactionId?: string
-  mpesaCode?: string
-  cashierId?: string
-  cashier?: User
-  createdAt: string
-  refundedAt?: string
-  refundReason?: string
-}
-
-export interface Receipt {
-  id: string
-  receiptNumber: string
-  orderId: string
-  order: Order
-  payment: Payment
-  issuedBy: string
-  issuedAt: string
-  printedAt?: string
 }
 
 export interface InventoryItem {
   id: string
   name: string
   category: string
+  currentStock: number
   unit: string
-  quantity: number
-  reorderLevel: number
-  unitPrice?: number
-  supplier?: string
-  lastRestocked?: string
-  expiryDate?: string
+  unitCost: number
+  minimumStock: number
+  maximumStock: number
+  supplier: string
+  lastRestock: string
 }
 
 export interface StockMovement {
@@ -178,18 +145,15 @@ export interface ServiceRequest {
   priority: "low" | "medium" | "high"
   status: "pending" | "in-progress" | "completed" | "cancelled"
   createdAt: string
-  completedAt?: string
-  assignedTo?: string
+  updatedAt: string
 }
 
-export interface Notification {
+export interface Receipt {
   id: string
-  type: "order" | "service-request" | "inventory" | "guest" | "system"
-  title: string
-  message: string
-  priority: "low" | "medium" | "high"
-  isRead: boolean
+  orderId: string
+  orderTotal: number
+  paymentMethod: PaymentMethod
+  paymentStatus: PaymentStatus
   createdAt: string
-  relatedId?: string
-  actionUrl?: string
+  customerEmail?: string
 }

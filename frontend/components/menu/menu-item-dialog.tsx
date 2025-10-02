@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import type { MenuItem } from "@/lib/types"
 import {
   Dialog,
@@ -16,25 +16,44 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-// Menu categories
-const menuCategories = ["Appetizers", "Main Course", "Beverages", "Desserts"]
+import { Alert, AlertDescription } from "@/components/ui/alert" // Added for form error display
+
+// Menu categories (Placeholder list for categories)
+const menuCategories = ["Appetizers", "Main Course", "Beverages", "Desserts", "Sides"]
+
+interface FormDataState {
+  name: string
+  description: string
+  category: string
+  price: string
+  preparationTime: string
+  isAvailable: boolean
+  // ADDED fields for image handling
+  imageFile: File | null
+  imageUrlPreview: string | null
+}
 
 interface MenuItemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   item: MenuItem | null
-  onSave: (item: any) => void
+  onSave: (itemData: FormData) => void // Changed signature to accept FormData
 }
 
 export function MenuItemDialog({ open, onOpenChange, item, onSave }: MenuItemDialogProps) {
-  const [formData, setFormData] = useState({
+  const initialState: FormDataState = {
     name: "",
     description: "",
     category: "Main Course",
     price: "",
     preparationTime: "",
     isAvailable: true,
-  })
+    imageFile: null,
+    imageUrlPreview: null,
+  }
+
+  const [formData, setFormData] = useState<FormDataState>(initialState)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (item) {
@@ -45,69 +64,156 @@ export function MenuItemDialog({ open, onOpenChange, item, onSave }: MenuItemDia
         price: item.price.toString(),
         preparationTime: item.preparationTime.toString(),
         isAvailable: item.isAvailable,
+        // When editing, set the existing image URL for preview
+        imageFile: null,
+        imageUrlPreview: item.image_url || null,
+      })
+    } else {
+      setFormData(initialState)
+    }
+    setError(null)
+  }, [item, open])
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null
+    if (file) {
+      const preview = URL.createObjectURL(file)
+      setFormData({
+        ...formData,
+        imageFile: file,
+        imageUrlPreview: preview,
       })
     } else {
       setFormData({
-        name: "",
-        description: "",
-        category: "Main Course",
-        price: "",
-        preparationTime: "",
-        isAvailable: true,
+        ...formData,
+        imageFile: null,
+        imageUrlPreview: item?.image_url || null,
       })
     }
-  }, [item, open])
+  }
 
-  const handleSubmit = () => {
-    const menuItem = {
+  const handleClearImage = () => {
+    // Clears the selected file/preview but keeps the original server image if editing
+    setFormData({
+        ...formData,
+        imageFile: null,
+        imageUrlPreview: item?.image_url || null,
+    });
+    // Clear file input manually if needed (not always necessary with React state)
+    (document.getElementById('image') as HTMLInputElement).value = '';
+  }
+
+  const isValid = useMemo(() => {
+    return (
+      formData.name.trim() !== "" &&
+      formData.category.trim() !== "" &&
+      !isNaN(parseFloat(formData.price)) &&
+      parseFloat(formData.price) >= 0 &&
+      !isNaN(parseInt(formData.preparationTime)) &&
+      parseInt(formData.preparationTime) > 0
+    )
+  }, [formData])
+
+  const handleSubmit = useCallback(() => {
+    if (!isValid) {
+      setError("Please fill all required fields correctly.")
+      return
+    }
+
+    const itemData = {
       name: formData.name,
       description: formData.description,
       category: formData.category,
-      price: Number.parseFloat(formData.price),
-      preparationTime: Number.parseInt(formData.preparationTime),
-      isAvailable: formData.isAvailable,
+      price: parseFloat(formData.price),
+      preparation_time: parseInt(formData.preparationTime),
+      is_available: formData.isAvailable,
+      // Pass category_id instead of category name if backend expects UUID,
+      // but assuming backend can handle category name string for now based on other files.
+      // If categories were separate model, this would be category: categoryId
     }
 
-    onSave(menuItem)
-  }
+    // 1. Create FormData object for file upload
+    const data = new FormData()
 
-  const isValid =
-    formData.name.trim() &&
-    formData.description.trim() &&
-    formData.price &&
-    Number.parseFloat(formData.price) > 0 &&
-    formData.preparationTime &&
-    Number.parseInt(formData.preparationTime) > 0
+    // 2. Append standard fields
+    // Use underscore_case for backend compatibility
+    for (const key in itemData) {
+      data.append(key, (itemData as any)[key])
+    }
+
+    // 3. Append image file if a new file was selected
+    if (formData.imageFile) {
+      data.append('image', formData.imageFile)
+    } 
+    // IMPORTANT: To signal to Django to clear an existing image, you usually send a null or an empty string,
+    // but often leaving it off the FormData is sufficient if no new file is provided. 
+    // If the image was intentionally cleared (not implemented here), a separate flag would be required.
+    // For simplicity, if imageFile is null, the existing image is kept (PATCH behavior).
+
+    onSave(data)
+  }, [formData, isValid, onSave, item])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{item ? "Edit Menu Item" : "Add New Menu Item"}</DialogTitle>
-          <DialogDescription>{item ? "Update menu item details" : "Create a new menu item"}</DialogDescription>
+          <DialogDescription>
+            {item ? "Update the details for this menu item." : "Fill in the details for a new menu item."}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid gap-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">Item Name *</Label>
             <Input
               id="name"
-              placeholder="e.g., Grilled Chicken"
+              placeholder="Cheeseburger"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
+            <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              placeholder="Describe the dish..."
+              placeholder="A juicy burger with cheddar cheese..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
             />
           </div>
+          
+          {/* ADDED: Image Upload Field */}
+          <div className="space-y-2">
+            <Label htmlFor="image">Item Image</Label>
+            <Input
+              id="image"
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="py-2"
+            />
+            {(formData.imageUrlPreview || (item && item.image_url)) && (
+              <div className="mt-2 flex items-center gap-4">
+                <img 
+                    src={formData.imageUrlPreview || item?.image_url || ''} 
+                    alt="Image Preview" 
+                    className="w-24 h-24 object-cover rounded-md border"
+                />
+                <Button variant="ghost" onClick={handleClearImage} className="text-destructive">
+                    Clear Image
+                </Button>
+              </div>
+            )}
+          </div>
+          {/* END ADDED BLOCK */}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -117,27 +223,25 @@ export function MenuItemDialog({ open, onOpenChange, item, onSave }: MenuItemDia
                 onValueChange={(value) => setFormData({ ...formData, category: value })}
               >
                 <SelectTrigger id="category">
-                  <SelectValue />
+                  <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {menuCategories
-                    .filter((cat) => cat !== "All")
-                    .map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
+                  {menuCategories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price">Price (KSh) *</Label>
+              <Label htmlFor="price">Price ($) *</Label>
               <Input
                 id="price"
                 type="number"
-                placeholder="0.00"
-                min="0"
+                placeholder="12.99"
+                min="0.00"
                 step="0.01"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: e.target.value })}

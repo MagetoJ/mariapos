@@ -34,46 +34,30 @@ class CategoryAdmin(admin.ModelAdmin):
     
     def menu_items_count(self, obj):
         return obj.menu_items.count()
-    menu_items_count.short_description = 'Menu Items'
-
-class MenuItemIngredientInline(admin.TabularInline):
-    model = MenuItemIngredient
-    extra = 0
-    fields = ('ingredient_name', 'quantity_required', 'unit', 'is_optional')
-
-class MenuItemModifierInline(admin.TabularInline):
-    model = MenuItemModifier
-    extra = 0
-    fields = ('name', 'modifier_type', 'price_adjustment', 'is_required', 'max_quantity')
+    menu_items_count.short_description = 'Items'
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ('name', 'category', 'price_display', 'image_preview', 'is_available', 'is_popular', 'dietary_info', 'preparation_time', 'created_at')
-    list_filter = ('category', 'is_available', 'is_popular', 'is_vegetarian', 'is_vegan', 'is_gluten_free', 'spice_level', 'created_at')
+    # FIX: Removed non-existent fields (is_popular, spice_level, is_vegetarian, etc.)
+    list_display = ('name', 'price_display', 'category', 'is_available', 'image_preview', 'created_at')
+    # FIX: Removed non-existent fields from list_filter
+    list_filter = ('category', 'is_available', 'created_at')
     search_fields = ('name', 'description', 'category__name')
     readonly_fields = ('id', 'image_preview', 'created_at', 'updated_at')
-    ordering = ('category', 'display_order', 'name')
-    inlines = [MenuItemIngredientInline, MenuItemModifierInline]
+    # FIX: Corrected ordering to only use existing fields
+    ordering = ('name',)
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('id', 'name', 'description', 'category', 'price', 'display_order')
-        }),
-        ('Availability & Status', {
-            'fields': ('is_available', 'is_popular', 'requires_ingredients')
-        }),
-        ('Dietary Information', {
-            'fields': ('is_vegetarian', 'is_vegan', 'is_gluten_free', 'calories', 'spice_level')
-        }),
-        ('Preparation', {
-            'fields': ('preparation_time',)
+            'fields': ('id', 'name', 'description', 'category', 'price', 'preparation_time', 'is_available')
         }),
         ('Media', {
             'fields': ('image', 'image_preview')
         }),
+        # FIX: Removed Dietary/Spice section fields
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
+            'classes': ('collapse',),
         }),
     )
     
@@ -85,21 +69,10 @@ class MenuItemAdmin(admin.ModelAdmin):
             )
         return "No image"
     image_preview.short_description = 'Image Preview'
-    
+
     def price_display(self, obj):
         return f"KSh {obj.price:,.2f}"
     price_display.short_description = 'Price'
-    
-    def dietary_info(self, obj):
-        info = []
-        if obj.is_vegetarian:
-            info.append("🥗 Vegetarian")
-        if obj.is_vegan:
-            info.append("🌱 Vegan")
-        if obj.is_gluten_free:
-            info.append("🌾 Gluten-Free")
-        return " | ".join(info) if info else "Regular"
-    dietary_info.short_description = 'Dietary Info'
 
 @admin.register(MenuItemIngredient)
 class MenuItemIngredientAdmin(admin.ModelAdmin):
@@ -110,7 +83,7 @@ class MenuItemIngredientAdmin(admin.ModelAdmin):
 
 @admin.register(MenuItemModifier)
 class MenuItemModifierAdmin(admin.ModelAdmin):
-    list_display = ('menu_item', 'name', 'modifier_type', 'price_adjustment', 'is_required', 'max_quantity')
+    list_display = ('menu_item', 'name', 'price_adjustment', 'modifier_type', 'is_required')
     list_filter = ('modifier_type', 'is_required')
     search_fields = ('menu_item__name', 'name')
     readonly_fields = ('id',)

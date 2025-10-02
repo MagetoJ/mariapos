@@ -25,26 +25,40 @@ interface MenuItemCardProps {
 export function MenuItemCard({ item, onEdit, onDelete, onToggleAvailability }: MenuItemCardProps) {
   return (
     <Card className={cn("overflow-hidden hover:shadow-md transition-shadow", !item.isAvailable && "opacity-60")}>
-      <div className="aspect-video bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
-        <div className="text-4xl">🍽️</div>
+      {/* ADDED: Image Display Logic */}
+      <div className="aspect-video relative overflow-hidden">
+        {item.image_url ? (
+          // Display the actual image
+          <img 
+            src={item.image_url} 
+            alt={item.name} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          // Fallback Placeholder
+          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+            <div className="text-4xl text-primary/70">🍽️</div>
+          </div>
+        )}
       </div>
+      {/* END ADDED BLOCK */}
 
       <div className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold truncate">{item.name}</h3>
-            <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+            <p className="text-sm text-muted-foreground line-clamp-1">{item.description}</p>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button variant="ghost" className="h-8 w-8 p-0">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onEdit(item)}>
                 <Edit className="mr-2 h-4 w-4" />
-                Edit
+                Edit Item
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onToggleAvailability(item.id, !item.isAvailable)}>
                 {item.isAvailable ? (
