@@ -30,11 +30,12 @@ export function SalesChart({ data }: SalesChartProps) {
         />
         <Line
           type="monotone"
-          dataKey="sales"
+          dataKey="revenue"
           stroke="hsl(var(--primary))"
           strokeWidth={2}
           dot={{ fill: "hsl(var(--primary))", r: 4 }}
           activeDot={{ r: 6 }}
+          name="Revenue"
         />
       </LineChart>
     </ResponsiveContainer>

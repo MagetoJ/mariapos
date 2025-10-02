@@ -23,7 +23,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
           }}
           formatter={(value: number) => formatCurrency(value)}
         />
-        <Bar dataKey="sales" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+        <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   )

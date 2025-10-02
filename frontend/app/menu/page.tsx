@@ -35,17 +35,18 @@ export default function MenuPage() {
     }
   }
 
-  const handleCreateItem = async (item: Omit<MenuItem, "id">) => {
+  const handleCreateItem = async (item: FormData) => {
     try {
       const newItem = await menuService.createMenuItem(item)
       setMenuItems([...menuItems, newItem])
       setDialogOpen(false)
     } catch (error) {
       console.error("Failed to create menu item:", error)
+      throw error;
     }
   }
 
-  const handleUpdateItem = async (id: string, updates: Partial<MenuItem>) => {
+  const handleUpdateItem = async (id: string, updates: FormData) => {
     try {
       const updatedItem = await menuService.updateMenuItem(id, updates)
       setMenuItems(menuItems.map((item) => (item.id === id ? updatedItem : item)))
@@ -53,6 +54,7 @@ export default function MenuPage() {
       setSelectedItem(null)
     } catch (error) {
       console.error("Failed to update menu item:", error)
+      throw error;
     }
   }
 
@@ -74,6 +76,19 @@ export default function MenuPage() {
     setSelectedItem(null)
     setDialogOpen(true)
   }
+
+  // CORRECTED: Create FormData object and append 'is_available'
+  const handleToggleAvailability = async (id: string, isAvailable: boolean) => {
+    const formData = new FormData();
+    // Use 'is_available' to match Django backend's model field name
+    formData.append("is_available", String(isAvailable));
+    try {
+      await handleUpdateItem(id, formData);
+      await fetchMenuItems(); // Refresh the list to show the updated status
+    } catch (error) {
+      console.error("Failed to toggle item availability:", error);
+    }
+  };
 
   const filteredItems = menuItems.filter(
     (item) =>
@@ -98,78 +113,91 @@ export default function MenuPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight text-balance">Menu Management</h2>
-            <p className="text-muted-foreground">Manage menu items and categories</p>
-          </div>
-          <Button onClick={handleNewItem}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Item
-          </Button>
+      <div className="flex items-center justify-between">
+        <div>
+        <h2 className="text-3xl font-bold tracking-tight text-balance">Menu Management</h2>
+        <p className="text-muted-foreground">Manage menu items and categories</p>
         </div>
+        <Button onClick={handleNewItem}>
+        <Plus className="mr-2 h-4 w-4" />
+        Add Item
+        </Button>
+      </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search menu items..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-sm">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search menu items..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+        </div>
+      </div>
+
+      <Tabs defaultValue="All" className="space-y-4">
+        <TabsList>
+        {menuCategories.map((category) => {
+          const count =
+          category === "All"
+            ? filteredItems.length
+            : filteredItems.filter((item) => item.category === category).length
+          return (
+          <TabsTrigger key={category} value={category}>
+            {category} ({count})
+          </TabsTrigger>
+          )
+        })}
+        </TabsList>
+
+        {menuCategories.map((category) => {
+        const items =
+          category === "All" ? filteredItems : filteredItems.filter((item) => item.category === category)
+
+        return (
+          <TabsContent key={category} value={category} className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {items.map((item) => (
+            <MenuItemCard
+              key={item.id}
+              item={item}
+              onEdit={handleEditItem}
+              onDelete={handleDeleteItem}
+              onToggleAvailability={handleToggleAvailability}
             />
+            ))}
           </div>
-        </div>
-
-        <Tabs defaultValue="All" className="space-y-4">
-          <TabsList>
-            {menuCategories.map((category) => {
-              const count =
-                category === "All"
-                  ? filteredItems.length
-                  : filteredItems.filter((item) => item.category === category).length
-              return (
-                <TabsTrigger key={category} value={category}>
-                  {category} ({count})
-                </TabsTrigger>
-              )
-            })}
-          </TabsList>
-
-          {menuCategories.map((category) => {
-            const items =
-              category === "All" ? filteredItems : filteredItems.filter((item) => item.category === category)
-
-            return (
-              <TabsContent key={category} value={category} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {items.map((item) => (
-                    <MenuItemCard
-                      key={item.id}
-                      item={item}
-                      onEdit={handleEditItem}
-                      onDelete={handleDeleteItem}
-                      onToggleAvailability={(id, isAvailable) => handleUpdateItem(id, { isAvailable })}
-                    />
-                  ))}
-                </div>
-                {items.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <p className="text-lg font-medium mb-2">No items found</p>
-                    <p className="text-sm">Try adjusting your search or add a new item</p>
-                  </div>
-                )}
-              </TabsContent>
-            )
-          })}
-        </Tabs>
+          {items.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+            <p className="text-lg font-medium mb-2">No items found</p>
+            <p className="text-sm">Try adjusting your search or add a new item</p>
+            </div>
+          )}
+          </TabsContent>
+        )
+        })}
+      </Tabs>
       </div>
 
       <MenuItemDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        item={selectedItem}
-        onSave={selectedItem ? (updates) => handleUpdateItem(selectedItem.id, updates) : handleCreateItem}
+      open={dialogOpen}
+      onOpenChange={(open) => {
+        setDialogOpen(open)
+        if (!open) setSelectedItem(null)
+      }}
+      item={selectedItem}
+      onSave={async (data) => {
+        if (selectedItem) {
+        // If editing, update the item
+        await handleUpdateItem(selectedItem.id, data)
+        await fetchMenuItems()
+        } else {
+        // If creating, create the item
+        await handleCreateItem(data)
+        await fetchMenuItems()
+        }
+      }}
       />
     </AppLayout>
   )

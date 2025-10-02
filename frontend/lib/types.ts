@@ -113,7 +113,7 @@ export interface Guest {
 }
 
 export interface DashboardStats {
-  todaySales: number
+  todayRevenue: number
   todayOrders: number
   activeOrders: number
   availableTables: number
@@ -121,18 +121,28 @@ export interface DashboardStats {
   averageOrderValue: number
   salesGrowth: number
   ordersGrowth: number
+  pendingServiceRequests: number
+  occupiedRooms: number
+  lowStockItems: number
+  outOfStockItems: number
 }
 
 export interface SalesData {
   date: string
-  sales: number
+  revenue: number
   orders: number
+  averageOrderValue: number
+  dineInRevenue: number
+  takeawayRevenue: number
+  roomServiceRevenue: number
 }
 
 export interface CategorySales {
   category: string
-  sales: number
+  revenue: number
   orders: number
+  itemsSold: number
+  percentageOfTotal: number
 }
 
 export interface ServiceRequest {

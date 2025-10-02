@@ -1,210 +1,161 @@
-"use client"
+// Core Types for Maria Havens POS System
 
-import { useEffect, useState } from "react"
-import { AppLayout } from "@/components/layout/app-layout"
-import { orderService, menuService, tableService } from "@/lib/api/data-service"
-import type { Order, MenuItem, Table } from "@/lib/types"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Plus, Search } from "lucide-react"
-import { OrderList } from "@/components/orders/order-list"
-import { CreateOrderDialog } from "@/components/orders/create-order-dialog"
-import { OrderDetailsDialog } from "@/components/orders/order-details-dialog"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useAuthStore } from "@/lib/store/auth-store"
+export type UserRole = "admin" | "manager" | "receptionist" | "waiter" | "kitchen" | "cashier" | "guest"
 
-export default function OrdersPage() {
-  const { user } = useAuthStore()
-  const [orders, setOrders] = useState<Order[]>([])
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
-  const [tables, setTables] = useState<Table[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
+export type OrderStatus = "pending" | "preparing" | "ready" | "served" | "completed" | "cancelled"
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+export type OrderType = "dine-in" | "takeaway" | "room-service"
 
-  const fetchData = async () => {
-    try {
-      const [ordersData, menuData, tablesData] = await Promise.all([
-        orderService.getOrders().catch((e) => {
-          console.error("❌ getOrders failed:", e)
-          return []
-        }),
-        menuService.getMenuItems().catch((e) => {
-          console.error("❌ getMenuItems failed:", e)
-          return []
-        }),
-        tableService.getTables().catch((e) => {
-          console.error("❌ getTables failed:", e)
-          return []
-        }),
-      ])
+export type TableStatus = "available" | "occupied" | "reserved" | "cleaning"
 
-      setOrders(ordersData)
-      setMenuItems(menuData)
-      setTables(tablesData)
-    } finally {
-      setLoading(false)
-    }
-  }
+export type PaymentMethod = "cash" | "card" | "mpesa" | "bank-transfer"
 
-  const handleCreateOrder = async (
-    order: Omit<Order, "id" | "orderNumber" | "createdAt" | "updatedAt">,
-  ) => {
-    try {
-      const newOrder = await orderService.createOrder(order)
-      setOrders([newOrder, ...orders])
-      setCreateDialogOpen(false)
-    } catch (error) {
-      console.error("❌ Failed to create order:", error)
-    }
-  }
+export type PaymentStatus = "pending" | "completed" | "refunded" | "failed"
 
-  const handleUpdateOrder = async (orderId: string, updates: Partial<Order>) => {
-    try {
-      const updatedOrder = await orderService.updateOrder(orderId, updates)
-      setOrders(orders.map((o) => (o.id === orderId ? updatedOrder : o)))
-      if (selectedOrder?.id === orderId) {
-        setSelectedOrder(updatedOrder)
-      }
-    } catch (error) {
-      console.error("❌ Failed to update order:", error)
-    }
-  }
+export interface User {
+  id: string
+  name: string
+  email: string
+  role: UserRole
+  phone?: string
+  avatar?: string
+  isActive: boolean
+  createdAt: string
+  acceptedTermsAt?: string
+  termsVersion?: string
+  roomNumber?: string // For guest accounts linked to rooms
+}
 
-  const handleViewOrder = (order: Order) => {
-    setSelectedOrder(order)
-    setDetailsDialogOpen(true)
-  }
+export interface MenuItem {
+  id: string
+  name: string
+  description: string
+  category: string
+  price: number
+  // UPDATED: image is the File/URL from the server's database field
+  image?: string | File | null 
+  // ADDED: image_url is the absolute path to display the image
+  image_url?: string | null
+  isAvailable: boolean
+  preparationTime: number // in minutes
+  ingredients?: string[]
+  allergens?: string[]
+}
 
-  const filteredOrders = orders.filter(
-    (order) =>
-      order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+export interface OrderItem {
+  id: string
+  menuItemId: string
+  menuItem: MenuItem
+  quantity: number
+  price: number
+  notes?: string
+}
 
-  const activeOrders = filteredOrders.filter((o) =>
-    ["pending", "preparing", "ready"].includes(o.status),
-  )
-  const completedOrders = filteredOrders.filter((o) => o.status === "completed")
-  const cancelledOrders = filteredOrders.filter((o) => o.status === "cancelled")
+export interface Order {
+  id: string
+  orderNumber: string
+  tableId?: string
+  tableNumber?: string
+  guestId?: string
+  guestName?: string
+  customerName?: string // Added this line to resolve the error
+  items: OrderItem[]
+  total: number
+  status: OrderStatus
+  type: OrderType
+  waiterId: string
+  waiterName: string
+  createdAt: string
+  updatedAt: string
+}
 
-  // Waiters only see their assigned orders
-  const displayOrders =
-    user?.role === "waiter"
-      ? filteredOrders.filter((o) => o.waiterId === user.id)
-      : filteredOrders
+export interface Table {
+  id: string
+  number: string
+  capacity: number
+  status: TableStatus
+  section: string
+  currentOrderId?: string
+}
 
-  const canCreateOrder = user?.role !== "kitchen"
+export interface InventoryItem {
+  id: string
+  name: string
+  category: string
+  currentStock: number
+  unit: string
+  unitCost: number
+  minimumStock: number
+  maximumStock: number
+  supplier: string
+  lastRestock: string
+}
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading orders...</p>
-          </div>
-        </div>
-      </AppLayout>
-    )
-  }
+export interface StockMovement {
+  id: string
+  itemId: string
+  type: "in" | "out" | "waste" | "adjustment"
+  quantity: number
+  reason?: string
+  performedBy: string
+  createdAt: string
+}
 
-  return (
-    <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight text-balance">
-              Orders
-            </h2>
-            <p className="text-muted-foreground">Manage and track all orders</p>
-          </div>
-          {canCreateOrder && (
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              New Order
-            </Button>
-          )}
-        </div>
+export interface Guest {
+  id: string
+  name: string
+  email?: string
+  phone: string
+  roomNumber: string
+  checkInDate: string
+  checkOutDate: string
+  status: "checked-in" | "checked-out"
+  totalSpent: number
+}
 
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search orders..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-        </div>
+export interface DashboardStats {
+  todayRevenue: number
+  todayOrders: number
+  activeOrders: number
+  availableTables: number
+  customersServed: number
+  averageOrderValue: number
+  salesGrowth: number
+  ordersGrowth: number
+  pendingServiceRequests: number
+}
 
-        <Tabs defaultValue="active" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="active">Active ({activeOrders.length})</TabsTrigger>
-            <TabsTrigger value="completed">
-              Completed ({completedOrders.length})
-            </TabsTrigger>
-            <TabsTrigger value="cancelled">
-              Cancelled ({cancelledOrders.length})
-            </TabsTrigger>
-            <TabsTrigger value="all">All ({displayOrders.length})</TabsTrigger>
-          </TabsList>
+export interface SalesData {
+  date: string
+  total_sales: number
+  orders: number
+}
 
-          <TabsContent value="active" className="space-y-4">
-            <OrderList
-              orders={activeOrders}
-              onViewOrder={handleViewOrder}
-              onUpdateOrder={handleUpdateOrder}
-            />
-          </TabsContent>
+export interface CategorySales {
+  category: string
+  total_sales: number
+  orders: number
+}
 
-          <TabsContent value="completed" className="space-y-4">
-            <OrderList
-              orders={completedOrders}
-              onViewOrder={handleViewOrder}
-              onUpdateOrder={handleUpdateOrder}
-            />
-          </TabsContent>
+export interface ServiceRequest {
+  id: string
+  guestId: string
+  guestName: string
+  roomNumber: string
+  type: "housekeeping" | "maintenance" | "room-service" | "concierge" | "other"
+  description: string
+  priority: "low" | "medium" | "high"
+  status: "pending" | "in-progress" | "completed" | "cancelled"
+  createdAt: string
+  updatedAt: string
+}
 
-          <TabsContent value="cancelled" className="space-y-4">
-            <OrderList
-              orders={cancelledOrders}
-              onViewOrder={handleViewOrder}
-              onUpdateOrder={handleUpdateOrder}
-            />
-          </TabsContent>
-
-          <TabsContent value="all" className="space-y-4">
-            <OrderList
-              orders={displayOrders}
-              onViewOrder={handleViewOrder}
-              onUpdateOrder={handleUpdateOrder}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      <CreateOrderDialog
-        open={createDialogOpen}
-        onOpenChange={setCreateDialogOpen}
-        onCreateOrder={handleCreateOrder}
-        menuItems={menuItems}
-        tables={tables}
-      />
-
-      <OrderDetailsDialog
-        open={detailsDialogOpen}
-        onOpenChange={setDetailsDialogOpen}
-        order={selectedOrder}
-        onUpdateOrder={handleUpdateOrder}
-      />
-    </AppLayout>
-  )
+export interface Receipt {
+  id: string
+  orderId: string
+  orderTotal: number
+  paymentMethod: PaymentMethod
+  paymentStatus: PaymentStatus
+  createdAt: string
+  customerEmail?: string
 }

@@ -43,14 +43,23 @@ function removeAuthToken(): void {
 }
 
 // Helper function for Django API calls
+// MODIFICATION: Check for FormData and adjust headers accordingly
 async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = getAuthToken()
+  
+  const headers: HeadersInit = {
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
+  
+  // If the body is not FormData, set Content-Type to application/json
+  if (!(options?.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
   
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      ...headers,
       ...options?.headers,
     },
   })
@@ -71,6 +80,11 @@ async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
     
     const errorMessage = errorData.error || errorData.message || errorData.detail || `API Error: ${response.statusText}`
     throw new Error(errorMessage)
+  }
+  
+  // Handle empty responses
+  if (response.status === 204) {
+    return null as T; // Return null for successful deletion or empty content
   }
   
   return response.json()
@@ -214,43 +228,46 @@ export const userService = {
 
 // Menu
 export const menuService = {
+  // CORRECTED: Endpoint URL for getting menu items
   async getMenuItems(params?: { category?: string; isAvailable?: boolean }): Promise<MenuItem[]> {
     const queryParams = new URLSearchParams()
     if (params?.category) queryParams.append('category', params.category)
     if (params?.isAvailable !== undefined) queryParams.append('isAvailable', params.isAvailable.toString())
     
     const query = queryParams.toString()
-    // FIX APPLIED: Ensures trailing slash is present before query string
-    const endpoint = `/menu/${query ? `?${query}` : ''}`
+    // FIX APPLIED: Correct URL to include 'menu-items' path
+    const endpoint = `/menu/menu-items/${query ? `?${query}` : ''}`
     const data = await apiCall<MenuItem[] | { results: MenuItem[] }>(endpoint)
     return Array.isArray(data) ? data : data.results || []
   },
 
   async getMenuItemById(id: string): Promise<MenuItem | null> {
     try {
-      return await apiCall<MenuItem>(`/menu/${id}/`)
+      return await apiCall<MenuItem>(`/menu/menu-items/${id}/`)
     } catch (error) {
       console.error('Get menu item by ID failed:', error)
       return null
     }
   },
 
-  async createMenuItem(item: Omit<MenuItem, "id">): Promise<MenuItem> {
-    return apiCall<MenuItem>('/menu/', { 
+  // MODIFICATION: Accept FormData for file uploads
+  async createMenuItem(itemData: FormData): Promise<MenuItem> {
+    return apiCall<MenuItem>('/menu/menu-items/', { 
       method: 'POST', 
-      body: JSON.stringify(item) 
+      body: itemData // Pass the FormData object directly
     })
   },
 
-  async updateMenuItem(id: string, updates: Partial<MenuItem>): Promise<MenuItem> {
-    return apiCall<MenuItem>(`/menu/${id}/`, { 
-      method: 'PATCH', 
-      body: JSON.stringify(updates) 
+  // MODIFICATION: Accept FormData for file uploads
+  async updateMenuItem(id: string, updates: FormData): Promise<MenuItem> {
+    return apiCall<MenuItem>(`/menu/menu-items/${id}/`, { 
+      method: 'PATCH', // Use PATCH for partial updates, PUT for full replacement
+      body: updates // Pass the FormData object directly
     })
   },
 
   async deleteMenuItem(id: string): Promise<void> {
-    return apiCall(`/menu/${id}/`, { method: 'DELETE' })
+    return apiCall(`/menu/menu-items/${id}/`, { method: 'DELETE' })
   },
 }
 
@@ -389,16 +406,47 @@ export const inventoryService = {
 
 // Dashboard
 export const dashboardService = {
+  // CORRECTED: Endpoint URL for stats
   async getStats(): Promise<DashboardStats> {
-    return apiCall<DashboardStats>('/dashboard/dashboard/stats/')
+    const stats = await apiCall<any>('/dashboard/stats/');
+    return {
+      todayRevenue: Number(stats.today_revenue) || 0,
+      todayOrders: Number(stats.today_orders) || 0,
+      activeOrders: Number(stats.active_orders) || 0,
+      availableTables: Number(stats.occupied_tables) ? Math.max(0, Number(stats.total_tables || 0) - Number(stats.occupied_tables)) : Number(stats.available_tables ?? 0) || 0,
+      customersServed: Number(stats.today_guests ?? stats.today_checkins) || 0,
+      averageOrderValue: Number(stats.average_order_value) || 0,
+      salesGrowth: Number(stats.sales_growth ?? 0),
+      ordersGrowth: Number(stats.orders_growth ?? 0),
+      pendingServiceRequests: Number(stats.pending_service_requests) || 0,
+      occupiedRooms: Number(stats.occupied_rooms) || 0,
+      lowStockItems: Number(stats.low_stock_items) || 0,
+      outOfStockItems: Number(stats.out_of_stock_items) || 0,
+    }
   },
 
   async getSalesData(days = 7): Promise<SalesData[]> {
-    return apiCall<SalesData[]>(`/dashboard/dashboard/sales_data/?days=${days}`)
+    const response = await apiCall<any[]>(`/dashboard/sales_data/?days=${days}`)
+    return response.map((entry) => ({
+      date: entry.date,
+      revenue: Number(entry.revenue) || 0,
+      orders: Number(entry.orders) || 0,
+      averageOrderValue: Number(entry.average_order_value) || 0,
+      dineInRevenue: Number(entry.dine_in_revenue) || 0,
+      takeawayRevenue: Number(entry.takeaway_revenue) || 0,
+      roomServiceRevenue: Number(entry.room_service_revenue) || 0,
+    }))
   },
 
   async getCategorySales(): Promise<CategorySales[]> {
-    return apiCall<CategorySales[]>('/dashboard/dashboard/category_sales/')
+    const response = await apiCall<any[]>('/dashboard/category_sales/')
+    return response.map((entry) => ({
+      category: entry.category,
+      revenue: Number(entry.revenue) || 0,
+      orders: Number(entry.orders) || 0,
+      itemsSold: Number(entry.items_sold) || 0,
+      percentageOfTotal: Number(entry.percentage_of_total) || 0,
+    }))
   },
 }
 

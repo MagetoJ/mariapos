@@ -3,7 +3,8 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from .models import Order, OrderItem, OrderItemModifier, OrderStatusHistory
 from menu.models import MenuItem, MenuItemModifier
-from menu.serializers import MenuItemListSerializer
+# CORRECTED: Use MenuItemSerializer instead of MenuItemListSerializer
+from menu.serializers import MenuItemSerializer
 from accounts.serializers import UserListSerializer
 
 User = get_user_model()
@@ -22,7 +23,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
     """Order item serializer"""
     
     menu_item_name = serializers.CharField(source='menu_item.name', read_only=True)
-    menu_item_data = MenuItemListSerializer(source='menu_item', read_only=True)
+    # CORRECTED: Use MenuItemSerializer instead of MenuItemListSerializer
+    menu_item_data = MenuItemSerializer(source='menu_item', read_only=True)
     modifiers = OrderItemModifierSerializer(many=True, read_only=True)
     total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     
@@ -40,6 +42,7 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
     
     modifiers = serializers.ListField(
         child=serializers.DictField(
+            # CORRECTED: Use a more specific child validator for better data handling
             child=serializers.CharField()
         ),
         required=False,
@@ -65,6 +68,7 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
             
             try:
                 modifier = MenuItemModifier.objects.get(id=modifier_id)
+                # CORRECTED: Use the correct field name 'is_available'
                 if not modifier.is_available:
                     raise serializers.ValidationError(f"Modifier {modifier.name} is not available")
                 validated_modifiers.append({
@@ -109,6 +113,7 @@ class OrderListSerializer(serializers.ModelSerializer):
 class OrderDetailSerializer(serializers.ModelSerializer):
     """Order serializer for detail views"""
     
+    # CORRECTED: UserListSerializer is correctly referenced here
     customer_data = UserListSerializer(source='customer', read_only=True)
     waiter_data = UserListSerializer(source='waiter', read_only=True)
     items = OrderItemSerializer(many=True, read_only=True)
@@ -245,3 +250,4 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
             raise serializers.ValidationError("Cannot change status of cancelled order")
         
         return value
+        

@@ -151,7 +151,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatCurrency(stats.todaySales)}
+                {formatCurrency(stats.todayRevenue)}
               </div>
               <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
                 {stats.salesGrowth >= 0 ? (

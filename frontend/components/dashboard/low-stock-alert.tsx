@@ -19,7 +19,7 @@ export function LowStockAlert({ items }: LowStockAlertProps) {
             <div>
               <p className="font-medium">{item.name}</p>
               <p className="text-sm text-muted-foreground">
-                Current: {item.quantity} {item.unit} • Min: {item.reorderLevel} {item.unit}
+                Current: {item.currentStock} {item.unit} • Min: {item.minimumStock} {item.unit}
               </p>
             </div>
           </div>

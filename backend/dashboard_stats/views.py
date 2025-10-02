@@ -37,12 +37,11 @@ class DashboardViewSet(viewsets.ViewSet):
             from service_requests.models import ServiceRequest
             from tables.models import Table
             from inventory.models import InventoryItem
-            from payments.models import Payment
             
             # Today's revenue and orders
             today_orders = Order.objects.filter(created_at__date=today)
             today_revenue = today_orders.aggregate(
-                total=Sum('total')
+                total=Sum('total_amount')
             )['total'] or Decimal('0.00')
             
             # Guest statistics
@@ -66,7 +65,7 @@ class DashboardViewSet(viewsets.ViewSet):
             # Performance metrics
             all_orders = Order.objects.filter(created_at__date=today)
             avg_order_value = all_orders.aggregate(
-                avg=Avg('total')
+                avg=Avg('total_amount')
             )['avg'] or Decimal('0.00')
             
             # Inventory alerts
@@ -123,26 +122,26 @@ class DashboardViewSet(viewsets.ViewSet):
                 )
                 
                 revenue = day_orders.aggregate(
-                    total=Sum('total')
+                    total=Sum('total_amount')
                 )['total'] or Decimal('0.00')
                 
                 orders_count = day_orders.count()
                 avg_value = day_orders.aggregate(
-                    avg=Avg('total')
+                    avg=Avg('total_amount')
                 )['avg'] or Decimal('0.00')
                 
                 # Breakdown by order type
                 dine_in_revenue = day_orders.filter(
-                    order_type='dine_in'
-                ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+                    type='dine_in'
+                ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
                 
                 takeaway_revenue = day_orders.filter(
-                    order_type='takeaway'
-                ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+                    type='takeaway'
+                ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
                 
                 room_service_revenue = day_orders.filter(
-                    order_type='room_service'
-                ).aggregate(total=Sum('total'))['total'] or Decimal('0.00')
+                    type='room_service'
+                ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0.00')
                 
                 sales_data.append({
                     'date': current_date,
@@ -181,7 +180,7 @@ class DashboardViewSet(viewsets.ViewSet):
             ).values(
                 'menu_item__category'
             ).annotate(
-                revenue=Sum(F('quantity') * F('price')),
+                revenue=Sum(F('quantity') * F('unit_price'), output_field=DecimalField(max_digits=12, decimal_places=2)),
                 orders=Count('order__id', distinct=True),
                 items_sold=Sum('quantity')
             ).order_by('-revenue')
@@ -192,10 +191,11 @@ class DashboardViewSet(viewsets.ViewSet):
             # Add percentage calculation
             category_sales = []
             for item in category_data:
-                percentage = (item['revenue'] / total_revenue * 100) if total_revenue > 0 else 0
+                revenue = item['revenue'] or Decimal('0.00')
+                percentage = (revenue / total_revenue * 100) if total_revenue else 0
                 category_sales.append({
                     'category': item['menu_item__category'] or 'Uncategorized',
-                    'revenue': item['revenue'],
+                    'revenue': revenue,
                     'orders': item['orders'],
                     'items_sold': item['items_sold'],
                     'percentage_of_total': Decimal(str(round(percentage, 2)))

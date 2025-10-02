@@ -9,8 +9,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     
     # API Endpoints
-    path('api/auth/', include('accounts.urls')),
-    path('api/users/', include('accounts.urls')), # Re-include for user management
+    path('api/', include(('accounts.urls', 'accounts'), namespace='accounts')),
     path('api/menu/', include('menu.urls')),
     path('api/orders/', include('orders.urls')),
     path('api/tables/', include('tables.urls')),
