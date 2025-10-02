@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt - TEST-001</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: black;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .receipt {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+        }
+        
+        .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        
+        .business-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #000;
+        }
+        
+        .business-subtitle {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .business-info {
+            font-size: 10px;
+            color: #666;
+            line-height: 1.2;
+        }
+        
+        .receipt-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 11px;
+        }
+        
+        .receipt-info div {
+            flex: 1;
+        }
+        
+        .order-details {
+            margin-bottom: 20px;
+            font-size: 11px;
+        }
+        
+        .order-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .order-details td {
+            padding: 2px 0;
+        }
+        
+        .items-section {
+            margin-bottom: 20px;
+        }
+        
+        .items-header {
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .item-details {
+            flex: 1;
+        }
+        
+        .item-name {
+            font-weight: bold;
+        }
+        
+        .item-modifiers {
+            font-size: 10px;
+            color: #666;
+            margin-left: 10px;
+        }
+        
+        .item-price {
+            text-align: right;
+            min-width: 60px;
+        }
+        
+        .totals {
+            border-top: 1px solid #000;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .grand-total {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        
+        .payment-info {
+            margin-top: 20px;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            border-top: 1px dashed #000;
+            padding-top: 15px;
+            font-size: 11px;
+        }
+        
+        .thank-you {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .return-policy {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .contact-info {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            
+            .receipt {
+                max-width: none;
+                border: none;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <!-- Header with Logo -->
+        <div class="header">
+            <img src="/static/images/maria-havens-logo.jpg" alt="Maria Havens Logo" class="logo">
+            <div class="business-name">Maria Havens</div>
+            <div class="business-subtitle">Homes & Restaurant</div>
+            <div class="business-info">
+                123 Test Street, Test City<br>
+                Phone: +1-234-567-8900<br>
+                Email: info@mariahavens.com<br>
+                TAX-123456
+            </div>
+        </div>
+        
+        <!-- Receipt Information -->
+        <div class="receipt-info">
+            <div>
+                <strong>Receipt #:</strong> TEST-001<br>
+                <strong>Order #:</strong> ORD-TEST-001<br>
+                <strong>Date:</strong> Oct 01, 2025 18:45
+            </div>
+            <div style="text-align: right;">
+                <strong>Customer:</strong> Test Customer<br>
+                
+                <strong>Room:</strong> 101<br>
+                
+                
+                <strong>Table:</strong> 5<br>
+                
+            </div>
+        </div>
+        
+        <!-- Order Details -->
+        <div class="order-details">
+            <table>
+                <tr>
+                    <td><strong>Order Type:</strong></td>
+                    <td>Dine In</td>
+                </tr>
+                
+                
+                <tr>
+                    <td><strong>Special Notes:</strong></td>
+                    <td>No onions</td>
+                </tr>
+                
+            </table>
+        </div>
+        
+        <!-- Items -->
+        <div class="items-section">
+            <div class="items-header">
+                <span>Item</span>
+                <span>Amount</span>
+            </div>
+            
+            
+            <div class="item">
+                <div class="item-details">
+                    <div class="item-name">1x Test Burger</div>
+                    
+                    
+                </div>
+                <div class="item-price">$15.99</div>
+            </div>
+            
+        </div>
+        
+        <!-- Totals -->
+        <div class="totals">
+            <div class="total-line">
+                <span>Subtotal:</span>
+                <span>$15.99</span>
+            </div>
+            
+            
+            <div class="total-line">
+                <span>Service Charge (10%):</span>
+                <span>$1.60</span>
+            </div>
+            
+            
+            
+            <div class="total-line">
+                <span>VAT (16%):</span>
+                <span>$2.56</span>
+            </div>
+            
+            
+            
+            
+            <div class="total-line grand-total">
+                <span>TOTAL:</span>
+                <span>$20.15</span>
+            </div>
+        </div>
+        
+        <!-- Payment Information -->
+        
+        <div class="payment-info">
+            <div class="total-line">
+                <span>Payment Method:</span>
+                <span>cash</span>
+            </div>
+            
+            
+            
+            <div class="total-line">
+                <span>Amount Paid:</span>
+                <span>$25.00</span>
+            </div>
+            
+            
+            <div class="total-line">
+                <span>Change:</span>
+                <span>$4.85</span>
+            </div>
+            
+        </div>
+        
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="thank-you">Thank you for dining with us!</div>
+            
+            <div class="return-policy">
+                All sales are final. Please retain this receipt for your records.
+            </div>
+            
+            <div class="contact-info">
+                For inquiries, please contact us at +1-234-567-8900<br>
+                Visit us at info@mariahavens.com
+            </div>
+        </div>
+    </div>
+</body>
+</html>

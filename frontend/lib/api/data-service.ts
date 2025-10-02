@@ -16,6 +16,7 @@ import type {
   CategorySales,
   Guest,
   ServiceRequest,
+  Receipt,
 } from "@/lib/types"
 
 // Base URL for Django API
@@ -45,9 +46,6 @@ function removeAuthToken(): void {
 async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = getAuthToken()
   
-  console.log('Making API call to:', `${API_BASE_URL}${endpoint}`)
-  console.log('Request options:', options)
-  
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers: {
@@ -56,9 +54,6 @@ async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
       ...options?.headers,
     },
   })
-  
-  console.log('Response status:', response.status)
-  console.log('Response ok:', response.ok)
   
   if (!response.ok) {
     if (response.status === 401) {
@@ -70,20 +65,15 @@ async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
     let errorData
     try {
       errorData = await response.json()
-      console.log('Error response data:', errorData)
     } catch (e) {
-      console.log('Could not parse error response as JSON')
       errorData = { error: response.statusText }
     }
     
     const errorMessage = errorData.error || errorData.message || errorData.detail || `API Error: ${response.statusText}`
-    console.log('Throwing error:', errorMessage)
     throw new Error(errorMessage)
   }
   
-  const data = await response.json()
-  console.log('Response data:', data)
-  return data
+  return response.json()
 }
 
 // Authentication
@@ -95,14 +85,10 @@ export const authService = {
         loginData.room_number = roomNumber // Use underscore format expected by Django
       }
 
-      console.log('Login attempt with data:', loginData)
-
       const response = await apiCall<{ user: User; access: string; refresh: string }>('/auth/login/', {
         method: 'POST',
         body: JSON.stringify(loginData),
       })
-
-      console.log('Login response received:', response)
 
       // Store the JWT access token
       setAuthToken(response.access)
@@ -112,10 +98,9 @@ export const authService = {
         localStorage.setItem('refresh-token', response.refresh)
       }
 
-      console.log('Login successful, returning user:', response.user)
       return response.user
     } catch (error) {
-      console.error('Login failed with error:', error)
+      console.error('Login failed:', error)
       return null
     }
   },
@@ -485,6 +470,56 @@ export const serviceRequestService = {
   },
 }
 
+// Receipts
+export const receiptService = {
+  async getReceipts(params?: { orderId?: string; dateFrom?: string; dateTo?: string }): Promise<Receipt[]> {
+    const queryParams = new URLSearchParams()
+    if (params?.orderId) queryParams.append('orderId', params.orderId)
+    if (params?.dateFrom) queryParams.append('dateFrom', params.dateFrom)
+    if (params?.dateTo) queryParams.append('dateTo', params.dateTo)
+    
+    const query = queryParams.toString()
+    const endpoint = `/receipts/${query ? `?${query}` : ''}`
+    const data = await apiCall<Receipt[] | { results: Receipt[] }>(endpoint)
+    return Array.isArray(data) ? data : data.results || []
+  },
+
+  async getReceiptById(id: string): Promise<Receipt | null> {
+    try {
+      return await apiCall<Receipt>(`/receipts/${id}/`)
+    } catch (error) {
+      console.error('Get receipt by ID failed:', error)
+      return null
+    }
+  },
+
+  async createReceipt(receipt: Omit<Receipt, "id" | "receiptNumber" | "issuedAt">): Promise<Receipt> {
+    return apiCall<Receipt>('/receipts/', { 
+      method: 'POST', 
+      body: JSON.stringify(receipt) 
+    })
+  },
+
+  async downloadReceipt(id: string): Promise<Blob> {
+    const token = getAuthToken()
+    const response = await fetch(`${API_BASE_URL}/receipts/${id}/download/`, {
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to download receipt')
+    }
+    
+    return response.blob()
+  },
+
+  async printReceipt(id: string): Promise<void> {
+    return apiCall(`/receipts/${id}/print/`, { method: 'POST' })
+  },
+}
+
 // Export all services
 export const getUsers = userService.getUsers
 export const getMenuItems = menuService.getMenuItems
@@ -515,6 +550,13 @@ export const updateServiceRequest = serviceRequestService.updateServiceRequest
 export const getGuests = guestService.getGuests
 export const checkInGuest = guestService.checkInGuest
 export const checkOutGuest = guestService.checkOutGuest
+
+// Receipt exports
+export const getReceipts = receiptService.getReceipts
+export const getReceiptById = receiptService.getReceiptById
+export const createReceipt = receiptService.createReceipt
+export const downloadReceipt = receiptService.downloadReceipt
+export const printReceipt = receiptService.printReceipt
 
 // Reports export (placeholder)
 export const getReports = async (from?: Date, to?: Date) => {

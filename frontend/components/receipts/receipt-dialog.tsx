@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { formatCurrency, formatDateTime } from "@/lib/utils/format"
 import { Printer } from "lucide-react"
-// import { useReactToPrint } from "react-to-print" // Temporarily disabled
+import { useReactToPrint } from "react-to-print"
 
 interface ReceiptDialogProps {
   open: boolean
@@ -25,10 +25,16 @@ interface ReceiptDialogProps {
 export function ReceiptDialog({ open, onOpenChange, order }: ReceiptDialogProps) {
   const receiptRef = useRef<HTMLDivElement>(null)
 
-  const handlePrint = () => {
-    // Temporarily disabled printing functionality
-    alert('Print functionality temporarily disabled')
-  }
+  const handlePrint = useReactToPrint({
+    content: () => receiptRef.current,
+    documentTitle: `Receipt-${order?.orderNumber}`,
+    pageStyle: `
+      @media print {
+        body { font-family: monospace; }
+        .print\\:p-0 { padding: 0 !important; }
+      }
+    `
+  })
 
   if (!order) return null
 
@@ -43,8 +49,20 @@ export function ReceiptDialog({ open, onOpenChange, order }: ReceiptDialogProps)
         <div ref={receiptRef} className="space-y-4 p-4 bg-white text-black print:p-0">
           {/* Header */}
           <div className="text-center space-y-2">
+            <div className="flex justify-center mb-3">
+              <img 
+                src="/maria-havens-logo.jpg" 
+                alt="Maria Havens Logo" 
+                className="h-16 w-auto object-contain"
+                onError={(e) => {
+                  // Fallback if logo doesn't load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+            </div>
             <h1 className="text-2xl font-bold">Maria Havens</h1>
-            <p className="text-sm">Hotel & Restaurant</p>
+            <p className="text-sm">Homes & Restaurant</p>
             <p className="text-xs">Nairobi, Kenya</p>
             <p className="text-xs">Tel: +254 700 000 000</p>
           </div>

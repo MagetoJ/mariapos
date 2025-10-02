@@ -112,7 +112,11 @@ const navItems: NavItem[] = [
   },
 ]
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  onItemClick?: () => void
+}
+
+export function AppSidebar({ onItemClick }: AppSidebarProps) {
   const pathname = usePathname()
   const { user } = useAuthStore()
 
@@ -141,6 +145,7 @@ export function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onItemClick}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                 isActive

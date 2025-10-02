@@ -91,15 +91,14 @@ class OrderListSerializer(serializers.ModelSerializer):
     
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     waiter_name = serializers.CharField(source='waiter.name', read_only=True)
-    table_number = serializers.CharField(source='table.table_number', read_only=True)
     items_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Order
         fields = [
             'id', 'order_number', 'customer', 'customer_name',
-            'waiter', 'waiter_name', 'table', 'table_number',
-            'room_number', 'order_type', 'status', 'total_amount',
+            'waiter', 'waiter_name', 'table_number',
+            'room_number', 'type', 'status', 'total_amount',
             'items_count', 'special_instructions', 'created_at'
         ]
         read_only_fields = ['id', 'order_number', 'created_at']
@@ -114,14 +113,13 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     waiter_data = UserListSerializer(source='waiter', read_only=True)
     items = OrderItemSerializer(many=True, read_only=True)
     status_history = OrderStatusHistorySerializer(many=True, read_only=True)
-    table_number = serializers.CharField(source='table.table_number', read_only=True)
     
     class Meta:
         model = Order
         fields = [
             'id', 'order_number', 'customer', 'customer_data',
-            'waiter', 'waiter_data', 'table', 'table_number',
-            'room_number', 'order_type', 'status', 'subtotal',
+            'waiter', 'waiter_data', 'table_number',
+            'room_number', 'type', 'status', 'subtotal',
             'tax_amount', 'total_amount', 'payment_status',
             'special_instructions', 'items', 'status_history',
             'created_at', 'updated_at'
@@ -139,8 +137,8 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = [
-            'customer', 'waiter', 'table', 'room_number',
-            'order_type', 'special_instructions', 'items'
+            'customer', 'waiter', 'table_number', 'room_number',
+            'type', 'special_instructions', 'items'
         ]
     
     def validate_items(self, items_data):
@@ -149,12 +147,12 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         return items_data
     
     def validate(self, attrs):
-        order_type = attrs.get('order_type')
-        table = attrs.get('table')
+        order_type = attrs.get('type')
+        table_number = attrs.get('table_number')
         room_number = attrs.get('room_number')
         
-        if order_type == 'dine_in' and not table:
-            raise serializers.ValidationError("Table is required for dine-in orders")
+        if order_type == 'dine_in' and not table_number:
+            raise serializers.ValidationError("Table number is required for dine-in orders")
         
         if order_type == 'room_service' and not room_number:
             raise serializers.ValidationError("Room number is required for room service orders")
@@ -163,7 +161,10 @@ class OrderCreateSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         items_data = validated_data.pop('items')
-        order = Order.objects.create(**validated_data)
+        
+        # Create order without calculating totals initially
+        order = Order(**validated_data)
+        order.save(skip_calculate_totals=True)
         
         for item_data in items_data:
             modifiers_data = item_data.pop('modifiers', [])
@@ -181,8 +182,9 @@ class OrderCreateSerializer(serializers.ModelSerializer):
                     **modifier_data
                 )
         
-        # Update total amounts
+        # Now calculate totals and save again
         order.calculate_totals()
+        order.save()
         return order
 
 class OrderUpdateSerializer(serializers.ModelSerializer):

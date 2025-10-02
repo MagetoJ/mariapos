@@ -33,7 +33,7 @@ class OrderListCreateView(generics.ListCreateAPIView):
         # Filter by order type
         order_type = self.request.query_params.get('type')
         if order_type:
-            queryset = queryset.filter(order_type=order_type)
+            queryset = queryset.filter(type=order_type)
         
         # Filter by waiter
         waiter_id = self.request.query_params.get('waiterId')
@@ -74,12 +74,22 @@ class OrderListCreateView(generics.ListCreateAPIView):
         
         return queryset.order_by('-created_at')
     
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
         # Set waiter to current user if waiter role
-        if self.request.user.role == 'waiter':
-            serializer.save(waiter=self.request.user)
+        if request.user.role == 'waiter':
+            order = serializer.save(waiter=request.user)
         else:
-            serializer.save()
+            order = serializer.save()
+        
+        # Refresh from database to get related objects
+        order.refresh_from_db()
+        
+        # Use OrderDetailSerializer to return the complete order data
+        response_serializer = OrderDetailSerializer(order)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 class OrderDetailView(generics.RetrieveUpdateAPIView):
     """Retrieve and update an order"""
@@ -255,7 +265,7 @@ def get_room_service_orders(request):
         )
     
     orders = Order.objects.filter(
-        order_type='room_service'
+        type='room_service'
     ).select_related(
         'customer', 'waiter'
     ).order_by('-created_at')
@@ -293,7 +303,7 @@ def get_order_statistics(request):
     status_counts = orders.values('status').annotate(count=Count('id'))
     
     # Count by type
-    type_counts = orders.values('order_type').annotate(count=Count('id'))
+    type_counts = orders.values('type').annotate(count=Count('id'))
     
     # Daily counts
     daily_counts = []

@@ -8,28 +8,28 @@ class TableSerializer(serializers.ModelSerializer):
     
     current_order_id = serializers.UUIDField(source='current_order.id', read_only=True)
     current_order_number = serializers.CharField(source='current_order.order_number', read_only=True)
-    waiter_name = serializers.CharField(source='waiter.name', read_only=True)
+    waiter_name = serializers.CharField(source='assigned_waiter.name', read_only=True)
     
     class Meta:
         model = Table
         fields = [
-            'id', 'table_number', 'capacity', 'status', 'section',
-            'waiter', 'waiter_name', 'current_order_id', 'current_order_number',
-            'x_position', 'y_position', 'created_at'
+            'id', 'number', 'capacity', 'status', 'section',
+            'assigned_waiter', 'waiter_name', 'current_order_id', 'current_order_number',
+            'position_x', 'position_y', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 
 class TableListSerializer(serializers.ModelSerializer):
     """Simplified table serializer for list views"""
     
-    waiter_name = serializers.CharField(source='waiter.name', read_only=True)
+    waiter_name = serializers.CharField(source='assigned_waiter.name', read_only=True)
     has_active_order = serializers.SerializerMethodField()
     
     class Meta:
         model = Table
         fields = [
-            'id', 'table_number', 'capacity', 'status', 'section',
-            'waiter', 'waiter_name', 'has_active_order'
+            'id', 'number', 'capacity', 'status', 'section',
+            'assigned_waiter', 'waiter_name', 'has_active_order'
         ]
         read_only_fields = ['id']
     
@@ -41,7 +41,7 @@ class TableStatusUpdateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Table
-        fields = ['status', 'waiter']
+        fields = ['status', 'assigned_waiter']
     
     def validate_status(self, value):
         # Business logic for status transitions

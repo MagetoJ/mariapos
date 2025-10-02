@@ -117,8 +117,9 @@ class Order(models.Model):
             
             self.order_number = f'ORD-{today}-{new_seq:04d}'
         
-        # Calculate totals
-        self.calculate_totals()
+        # Only calculate totals if this is not a new object or skip_calculate_totals is not set
+        if not kwargs.pop('skip_calculate_totals', False) and self.pk is not None:
+            self.calculate_totals()
         
         super().save(*args, **kwargs)
     

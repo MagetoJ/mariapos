@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt - {{ receipt.receipt_number }}</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: black;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .receipt {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000;
+            padding-bottom: 15px;
+        }
+        
+        .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        
+        .business-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #000;
+        }
+        
+        .business-subtitle {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .business-info {
+            font-size: 10px;
+            color: #666;
+            line-height: 1.2;
+        }
+        
+        .receipt-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 11px;
+        }
+        
+        .receipt-info div {
+            flex: 1;
+        }
+        
+        .order-details {
+            margin-bottom: 20px;
+            font-size: 11px;
+        }
+        
+        .order-details table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .order-details td {
+            padding: 2px 0;
+        }
+        
+        .items-section {
+            margin-bottom: 20px;
+        }
+        
+        .items-header {
+            border-bottom: 1px solid #000;
+            padding-bottom: 5px;
+            margin-bottom: 10px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+        
+        .item-details {
+            flex: 1;
+        }
+        
+        .item-name {
+            font-weight: bold;
+        }
+        
+        .item-modifiers {
+            font-size: 10px;
+            color: #666;
+            margin-left: 10px;
+        }
+        
+        .item-price {
+            text-align: right;
+            min-width: 60px;
+        }
+        
+        .totals {
+            border-top: 1px solid #000;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .grand-total {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        
+        .payment-info {
+            margin-top: 20px;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            border-top: 1px dashed #000;
+            padding-top: 15px;
+            font-size: 11px;
+        }
+        
+        .thank-you {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .return-policy {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        
+        .contact-info {
+            font-size: 10px;
+            color: #666;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            
+            .receipt {
+                max-width: none;
+                border: none;
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="receipt">
+        <!-- Header with Logo -->
+        <div class="header">
+            <img src="/static/images/maria-havens-logo.jpg" alt="Maria Havens Logo" class="logo">
+            <div class="business-name">{{ receipt.business_name }}</div>
+            <div class="business-subtitle">Homes & Restaurant</div>
+            <div class="business-info">
+                {{ receipt.business_address }}<br>
+                Phone: {{ receipt.business_phone }}<br>
+                Email: {{ receipt.business_email }}<br>
+                {{ receipt.tax_id }}
+            </div>
+        </div>
+        
+        <!-- Receipt Information -->
+        <div class="receipt-info">
+            <div>
+                <strong>Receipt #:</strong> {{ receipt.receipt_number }}<br>
+                <strong>Order #:</strong> {{ receipt.order.order_number }}<br>
+                <strong>Date:</strong> {{ receipt.created_at|date:"M d, Y H:i" }}
+            </div>
+            <div style="text-align: right;">
+                <strong>Customer:</strong> {{ receipt.customer_name }}<br>
+                {% if receipt.customer_room %}
+                <strong>Room:</strong> {{ receipt.customer_room }}<br>
+                {% endif %}
+                {% if receipt.order.table_number %}
+                <strong>Table:</strong> {{ receipt.order.table_number }}<br>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Order Details -->
+        <div class="order-details">
+            <table>
+                <tr>
+                    <td><strong>Order Type:</strong></td>
+                    <td>{{ receipt.order.get_type_display }}</td>
+                </tr>
+                {% if receipt.order.waiter %}
+                <tr>
+                    <td><strong>Served by:</strong></td>
+                    <td>{{ receipt.order.waiter.name }}</td>
+                </tr>
+                {% endif %}
+                {% if receipt.order.special_instructions %}
+                <tr>
+                    <td><strong>Special Notes:</strong></td>
+                    <td>{{ receipt.order.special_instructions }}</td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+        
+        <!-- Items -->
+        <div class="items-section">
+            <div class="items-header">
+                <span>Item</span>
+                <span>Amount</span>
+            </div>
+            
+            {% for item in items %}
+            <div class="item">
+                <div class="item-details">
+                    <div class="item-name">{{ item.quantity }}x {{ item.name }}</div>
+                    {% if item.modifiers %}
+                        {% for modifier in item.modifiers %}
+                        <div class="item-modifiers">+ {{ modifier.name }} (+${{ modifier.price }})</div>
+                        {% endfor %}
+                    {% endif %}
+                    {% if item.special_instructions %}
+                    <div class="item-modifiers">Note: {{ item.special_instructions }}</div>
+                    {% endif %}
+                </div>
+                <div class="item-price">${{ item.line_total|floatformat:2 }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Totals -->
+        <div class="totals">
+            <div class="total-line">
+                <span>Subtotal:</span>
+                <span>${{ receipt.subtotal|floatformat:2 }}</span>
+            </div>
+            
+            {% if receipt.service_charge > 0 %}
+            <div class="total-line">
+                <span>Service Charge (10%):</span>
+                <span>${{ receipt.service_charge|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            
+            {% if receipt.tax_amount > 0 %}
+            <div class="total-line">
+                <span>VAT (16%):</span>
+                <span>${{ receipt.tax_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            
+            {% if receipt.discount_amount > 0 %}
+            <div class="total-line">
+                <span>Discount:</span>
+                <span>-${{ receipt.discount_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="total-line grand-total">
+                <span>TOTAL:</span>
+                <span>${{ receipt.total_amount|floatformat:2 }}</span>
+            </div>
+        </div>
+        
+        <!-- Payment Information -->
+        {% if receipt.payment_method %}
+        <div class="payment-info">
+            <div class="total-line">
+                <span>Payment Method:</span>
+                <span>{{ receipt.payment_method }}</span>
+            </div>
+            
+            {% if receipt.payment_reference %}
+            <div class="total-line">
+                <span>Reference:</span>
+                <span>{{ receipt.payment_reference }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="total-line">
+                <span>Amount Paid:</span>
+                <span>${{ receipt.amount_paid|floatformat:2 }}</span>
+            </div>
+            
+            {% if receipt.change_amount > 0 %}
+            <div class="total-line">
+                <span>Change:</span>
+                <span>${{ receipt.change_amount|floatformat:2 }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="thank-you">Thank you for dining with us!</div>
+            
+            <div class="return-policy">
+                All sales are final. Please retain this receipt for your records.
+            </div>
+            
+            <div class="contact-info">
+                For inquiries, please contact us at {{ receipt.business_phone }}<br>
+                Visit us at {{ receipt.business_email }}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

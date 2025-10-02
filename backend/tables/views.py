@@ -19,7 +19,7 @@ class TableListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        queryset = Table.objects.select_related('waiter', 'current_order')
+        queryset = Table.objects.select_related('assigned_waiter', 'current_order')
         
         # Filter by status
         status_filter = self.request.query_params.get('status')
@@ -34,19 +34,19 @@ class TableListView(generics.ListAPIView):
         # Filter by waiter
         waiter_id = self.request.query_params.get('waiter')
         if waiter_id:
-            queryset = queryset.filter(waiter_id=waiter_id)
+            queryset = queryset.filter(assigned_waiter_id=waiter_id)
         
         # For waiters, show their assigned tables by default
         if self.request.user.role == 'waiter':
             show_all = self.request.query_params.get('showAll', 'false').lower() == 'true'
             if not show_all:
-                queryset = queryset.filter(waiter=self.request.user)
+                queryset = queryset.filter(assigned_waiter=self.request.user)
         
-        return queryset.order_by('section', 'table_number')
+        return queryset.order_by('section', 'number')
 
 class TableDetailView(generics.RetrieveUpdateAPIView):
     """Retrieve and update a table"""
-    queryset = Table.objects.select_related('waiter', 'current_order')
+    queryset = Table.objects.select_related('assigned_waiter', 'current_order')
     serializer_class = TableSerializer
     permission_classes = [permissions.IsAuthenticated]
     
@@ -79,7 +79,7 @@ def assign_waiter(request, pk):
             waiter_id = serializer.validated_data['waiter']
             waiter = User.objects.get(id=waiter_id)
             
-            table.waiter = waiter
+            table.assigned_waiter = waiter
             table.save()
             
             return Response(TableSerializer(table).data)
@@ -120,7 +120,7 @@ def occupy_table(request, pk):
             if waiter_id:
                 try:
                     waiter = User.objects.get(id=waiter_id, role='waiter')
-                    table.waiter = waiter
+                    table.assigned_waiter = waiter
                 except User.DoesNotExist:
                     return Response(
                         {"error": "Waiter not found"}, 
@@ -130,7 +130,7 @@ def occupy_table(request, pk):
             table.save()
             
             return Response({
-                "message": f"Table {table.table_number} occupied by {guest_count} guests",
+                "message": f"Table {table.number} occupied by {guest_count} guests",
                 "table": TableSerializer(table).data
             })
         
@@ -164,7 +164,7 @@ def free_table(request, pk):
         table.save()
         
         return Response({
-            "message": f"Table {table.table_number} is now available",
+            "message": f"Table {table.number} is now available",
             "table": TableSerializer(table).data
         })
     
